@@ -37,8 +37,6 @@ input:focus,textarea:focus,select:focus{outline:2px solid var(--acc);border-colo
 .ex .th{width:84px;height:56px;flex:none;background:var(--acc2);border-radius:10px;overflow:hidden;display:flex;align-items:center;justify-content:center}
 .ex .th img{width:100%;height:100%;object-fit:cover}.ex .tx{flex:1;min-width:0}
 .fig{width:100%;height:100%;display:block}
-.fig line{stroke:#2b2750;stroke-width:5;stroke-linecap:round}.fig .floor{stroke:#cfcbe6;stroke-width:2}
-.fig .head{fill:#2b2750}.fig .eq{fill:var(--acc)}.fig .deco{fill:#d9d4f5;stroke:none}.fig .deco2{stroke:#9a90e0;stroke-width:4}
 .big{background:var(--acc2);border-radius:16px;overflow:hidden;aspect-ratio:3/2}
 .big img{width:100%;height:100%;object-fit:contain}
 .ov{position:fixed;inset:0;background:rgba(20,15,50,.5);z-index:50;display:flex;align-items:flex-end;justify-content:center}
@@ -63,99 +61,445 @@ details summary{cursor:pointer;list-style:none}details summary::-webkit-details-
 <div class="nav"><div id="nav"></div></div>
 <div id="modal"></div>
 <script>
-/* ===== Ćwiczenia (rysunki: dwie pozy, animacja między nimi) ===== */
-const GROUPS=['Nogi','Pośladki','Plecy','Klatka','Barki','Ramiona','Brzuch'];
-const BENCH='<rect class="deco" x="35" y="104" width="115" height="9" rx="3"/><rect class="deco" x="50" y="113" width="6" height="30"/><rect class="deco" x="130" y="113" width="6" height="30"/>';
-const BOX='<rect class="deco" x="38" y="102" width="50" height="41" rx="4"/>';
-const PBAR='<line class="deco2" x1="70" y1="14" x2="170" y2="14"/>';
-const BUILTIN=[
-{id:'przysiad',name:'Przysiad',group:'Nogi',eq:'masa ciała lub hantel',
- a:{h:[120,28],s:[120,46],p:[120,88],k:[122,116],a:[120,142],e:[132,58],w:[142,50]},
- b:{h:[138,46],s:[130,60],p:[100,102],k:[145,108],a:[122,142],e:[148,70],w:[158,62]},
- steps:['Stań na szerokość bioder lub odrobinę szerzej, palce stóp lekko na zewnątrz.','Napnij brzuch, odepchnij biodra do tyłu i zacznij uginać kolana.','Zejdź w dół, aż uda będą mniej więcej równolegle do podłogi.','Wypchnij się piętami w górę, do pozycji wyjściowej.'],
- tips:'Kolana idą w kierunku palców stóp, plecy proste, pięty cały czas na podłodze.'},
-{id:'wykroki',name:'Wykroki',group:'Nogi',eq:'masa ciała lub hantle',
- a:{h:[120,28],s:[120,46],p:[120,88],k:[120,116],a:[120,142],k2:[120,116],a2:[120,142],e:[128,70],w:[122,90]},
+/* ===== Ćwiczenia: silnik rysunków + biblioteka =====
+   Rysunki są nasze własne (generowane kodem), opisy napisane po polsku od zera. */
+const GROUPS=['Nogi','Pośladki','Plecy','Klatka','Barki','Biceps','Triceps','Brzuch'];
+const C={body:'#4b4676',far:'#a9a4cf',hl:'#ff7a59',skin:'#f2c7a5',metal:'#a3a8bd',plate:'#2f2c4a',pad:'#d8d3f2',frame:'#b9bdd2',floor:'#d6d2ec',cable:'#8a8ca3'};
+const WD={torso:21,thigh:14,shin:11,uarm:10,farm:9};
+const r1=x=>Math.round(x*10)/10;
+const ln=(p,q,w,c)=>`<line x1="${r1(p[0])}" y1="${r1(p[1])}" x2="${r1(q[0])}" y2="${r1(q[1])}" stroke="${c}" stroke-width="${w}" stroke-linecap="round"/>`;
+const ci=(p,r,c)=>`<circle cx="${r1(p[0])}" cy="${r1(p[1])}" r="${r}" fill="${c}"/>`;
+const padR=(x,y,w,h)=>`<rect x="${x}" y="${y}" width="${w}" height="${h}" rx="4" fill="${C.pad}"/>`;
+const fr=(x1,y1,x2,y2,w)=>ln([x1,y1],[x2,y2],w||5,C.frame);
+const plate=(p,r)=>ci(p,r,C.plate)+ci(p,r*0.36,C.metal);
+const lerp=(a,b,t)=>a+(b-a)*t;
+const mid=(p,q)=>[(p[0]+q[0])/2,(p[1]+q[1])/2];
+
+const D={
+ bench:padR(35,104,115,9)+fr(48,113,48,143)+fr(138,113,138,143),
+ box:padR(38,102,50,41),
+ pbar:fr(70,14,170,14,5)+fr(70,14,70,143,3)+fr(170,14,170,143,3),
+ seat:padR(98,100,46,8)+fr(121,108,121,143),
+ seatBack:padR(98,40,9,62)+padR(98,100,46,8)+fr(121,108,121,143),
+ smith:fr(92,8,92,143,3)+fr(152,8,152,143,3),
+ hack:ln([58,34],[98,124],14,C.pad)+fr(40,143,130,143,4),
+ incline:ln([52,70],[97,115],12,C.pad)+padR(92,116,42,7)+fr(102,123,102,143),
+ sideBench:padR(158,108,56,8)+fr(168,116,168,143)+fr(204,116,204,143),
+ mach:ln([36,88],[88,129],12,C.pad)+fr(30,141,205,141,4),
+ preacher:ln([132,52],[152,104],11,C.pad)+fr(152,104,152,143,4),
+ legext:padR(56,40,9,62)+padR(58,100,52,8)+fr(84,108,84,143),
+ prone:padR(30,108,160,8)+fr(44,116,44,143)+fr(176,116,176,143),
+ chestM:padR(82,40,10,62)+padR(86,102,46,8)+fr(109,110,109,143)+fr(92,60,92,60,2),
+ pulldown:padR(92,106,50,8)+fr(117,114,117,143)+padR(130,92,30,6),
+ seatedRow:padR(70,108,48,8)+fr(94,116,94,143)+fr(168,86,168,143,5),
+ abduct:padR(98,102,44,8)+fr(120,110,120,143)
+};
+
+/* ---- rysowanie: widok z boku ---- */
+function figSide(ex,t){
+ const j={};for(const k in ex.a){const A=ex.a[k],B=ex.b[k]||A;j[k]=[lerp(A[0],B[0],t),lerp(A[1],B[1],t)]}
+ const hl=new Set(ex.hl||[]);const col=(k,d)=>hl.has(k)?C.hl:d;
+ const face=ex.face||1,far=p=>[p[0]-5,p[1]-1.5];
+ let s=`<svg viewBox="0 0 240 160" class="fig" xmlns="http://www.w3.org/2000/svg"><line x1="8" y1="144" x2="232" y2="144" stroke="${C.floor}" stroke-width="3" stroke-linecap="round"/>${ex.deco||''}`;
+ // dalsze kończyny
+ s+=ln(far(j.s),far(j.e),WD.uarm-1,C.far)+ln(far(j.e),far(j.w),WD.farm-1,C.far);
+ if(j.k2)s+=ln(j.p,j.k2,WD.thigh-1,C.far)+ln(j.k2,j.a2,WD.shin-1,C.far);
+ else s+=ln(far(j.p),far(j.k),WD.thigh-1,C.far)+ln(far(j.k),far(j.a),WD.shin-1,C.far);
+ // tułów
+ const m=mid(j.s,j.p);
+ s+=ln(j.s,m,WD.torso,col('torsoU',C.body))+ln(m,j.p,WD.torso,col('torsoL',C.body));
+ // bliższa noga
+ s+=ln(j.p,j.k,WD.thigh,col('thigh',C.body))+ln(j.k,j.a,WD.shin,col('shin',C.body));
+ if(hl.has('glute'))s+=ci(j.p,9.5,C.hl);
+ // ramię
+ s+=ln(j.s,j.e,WD.uarm,col('uarm',C.body))+ln(j.e,j.w,WD.farm,col('farm',C.body));
+ if(hl.has('shoulder'))s+=ci(j.s,8.5,C.hl);
+ // szyja i głowa
+ s+=ln(j.s,j.h,7,C.skin)+ci(j.h,9.5,C.skin);
+ // dłonie i stopy
+ s+=ci(j.w,4.6,C.skin);
+ if(!ex.nofoot){
+  if(j.a[1]>=136)s+=ln(j.a,[j.a[0]+face*11,j.a[1]],6,C.body);
+  if(j.a2&&j.a2[1]>=136)s+=ln(j.a2,[j.a2[0]+face*11,j.a2[1]],5,C.far);
+ }
+ // sprzęt
+ const pt=ex.barAt==='s'?j.s:ex.barAt==='p'?j.p:j.w;
+ if(ex.cable){s+=ln(ex.cable,j.w,2,C.cable)+ci(ex.cable,5,C.metal)+ci(j.w,3,C.metal)}
+ if(ex.plate){const dx=j.a[0]-j.k[0],dy=j.a[1]-j.k[1],L=Math.hypot(dx,dy)||1,nx=-dy/L,ny=dx/L;s+=ln([j.a[0]+nx*16+dx/L*4,j.a[1]+ny*16+dy/L*4],[j.a[0]-nx*16+dx/L*4,j.a[1]-ny*16+dy/L*4],6,C.metal)}
+ if(ex.draw==='bar')s+=ln([pt[0]-15,pt[1]],[pt[0]+15,pt[1]],3,C.metal)+plate(pt,10);
+ else if(ex.draw==='db')s+=plate(pt,6.5);
+ else if(ex.draw==='kb')s+=`<path d="M${r1(pt[0]-5)} ${r1(pt[1]-5)} q5 -9 10 0" fill="none" stroke="${C.plate}" stroke-width="3"/>`+ci([pt[0],pt[1]+1],7,C.plate);
+ return s+'</svg>';
+}
+/* ---- rysowanie: widok z przodu (lewa strona definiowana, prawa odbijana) ---- */
+function figFront(ex,t){
+ const j={};for(const k in ex.a){const A=ex.a[k],B=ex.b[k]||A;j[k]=[lerp(A[0],B[0],t),lerp(A[1],B[1],t)]}
+ const R=p=>[240-p[0],p[1]];const hl=new Set(ex.hl||[]);const col=(k,d)=>hl.has(k)?C.hl:d;
+ let s=`<svg viewBox="0 0 240 160" class="fig" xmlns="http://www.w3.org/2000/svg"><line x1="8" y1="144" x2="232" y2="144" stroke="${C.floor}" stroke-width="3" stroke-linecap="round"/>${ex.deco||''}`;
+ const sR=R(j.s),pR=R(j.p),eR=R(j.e),wR=R(j.w),kR=R(j.k),aR=R(j.a);
+ s+=ln(j.p,j.k,WD.thigh,col('thigh',C.body))+ln(j.k,j.a,WD.shin,C.body)+ln(pR,kR,WD.thigh,col('thigh',C.body))+ln(kR,aR,WD.shin,C.body);
+ s+=ln([120,j.s[1]+4],[120,j.p[1]-2],27,col('torsoU',C.body))+ln(j.p,pR,17,C.body)+ln(j.s,sR,15,col('torsoU',C.body));
+ s+=ln(j.s,j.e,WD.uarm,col('uarm',C.body))+ln(j.e,j.w,WD.farm,C.body)+ln(sR,eR,WD.uarm,col('uarm',C.body))+ln(eR,wR,WD.farm,C.body);
+ if(hl.has('shoulder'))s+=ci(j.s,8.5,C.hl)+ci(sR,8.5,C.hl);
+ if(hl.has('trap'))s+=ln([108,j.s[1]-3],[132,j.s[1]-3],12,C.hl);
+ s+=ln([120,j.s[1]],[120,j.h[1]],7,C.skin)+ci(j.h,9.5,C.skin);
+ s+=ci(j.w,4.6,C.skin)+ci(wR,4.6,C.skin);
+ s+=ln(j.a,[j.a[0]-9,j.a[1]],6,C.body)+ln(aR,[aR[0]+9,aR[1]],6,C.body);
+ if(ex.draw==='db'||ex.draw==='bar')s+=plate(j.w,6.5)+plate(wR,6.5);
+ return s+'</svg>';
+}
+const figSVG=(ex,t)=>ex.view==='front'?figFront(ex,t):figSide(ex,t);
+
+/* ===== Szablony ruchów: pozy start (a) i koniec (b) ===== */
+const STAND={h:[120,28],s:[120,46],p:[120,88],k:[120,116],a:[120,142]};
+const BENT={h:[168,64],s:[154,72],p:[108,84],k:[128,112],a:[120,142]};
+const LYING={h:[62,96],s:[78,98],p:[132,98],k:[160,114],a:[158,142]};
+const SEATED={h:[116,40],s:[116,58],p:[112,104],k:[150,102],a:[152,140]};
+const T={};
+const tp=(id,o)=>{T[id]=o};
+tp('squat',{g:'Nogi',hl:['thigh','glute'],mus:'czworogłowe ud, pośladki',
+ a:{...STAND,e:[132,58],w:[142,50]},b:{h:[138,46],s:[130,60],p:[100,102],k:[145,108],a:[122,142],e:[148,70],w:[158,62]},
+ steps:['Stań na szerokość bioder lub odrobinę szerzej, palce stóp lekko na zewnątrz.','Napnij brzuch, odepchnij biodra do tyłu i zacznij uginać kolana.','Zejdź w dół, aż uda będą mniej więcej równolegle do podłogi.','Wypchnij się piętami w górę do pozycji wyjściowej.'],
+ tips:'Kolana idą w kierunku palców stóp, plecy proste, pięty cały czas na podłodze.'});
+tp('lunge',{g:'Nogi',hl:['thigh','glute'],mus:'czworogłowe ud, pośladki',
+ a:{...STAND,k2:[120,116],a2:[120,142],e:[128,70],w:[122,90]},
  b:{h:[122,38],s:[122,56],p:[122,98],k:[152,102],a:[152,142],k2:[100,128],a2:[86,142],e:[130,74],w:[122,94]},
- steps:['Stań prosto, ręce na biodrach lub z hantlami przy ciele.','Zrób duży krok do przodu.','Opuść biodra w dół, aż przednie kolano ma ok. 90°, tylne kolano prawie dotyka podłogi.','Odepchnij się przednią stopą i wróć do pozycji wyjściowej. Zrób powtórzenia na jedną nogę, potem na drugą.'],
- tips:'Tułów prosto, przednie kolano nie wychodzi mocno przed palce stopy.'},
-{id:'martwy',name:'Martwy ciąg',group:'Plecy',eq:'sztanga lub hantle',
+ steps:['Stań prosto, ręce na biodrach lub z hantlami przy ciele.','Zrób duży krok do przodu.','Opuść biodra w dół, aż przednie kolano ma ok. 90°, a tylne prawie dotyka podłogi.','Odepchnij się przednią stopą i wróć do pozycji wyjściowej. Zrób serię na jedną nogę, potem na drugą.'],
+ tips:'Tułów prosto, przednie kolano nie wychodzi mocno przed palce stopy.'});
+tp('deadlift',{g:'Plecy',hl:['torsoL','glute','thigh'],mus:'prostowniki grzbietu, pośladki, tył uda',draw:'bar',
  a:{h:[166,66],s:[152,74],p:[106,86],k:[128,114],a:[118,142],e:[152,98],w:[150,120]},
- b:{h:[122,28],s:[120,46],p:[116,90],k:[120,116],a:[118,142],e:[120,72],w:[122,96]},eq:'sztanga lub hantle',draw:'bar',
- steps:['Stań na szerokość bioder, ciężar tuż przy goleniach.','Zegnij się w biodrach (pupa do tyłu), plecy proste, chwyć ciężar.','Napnij brzuch i wypchnij biodra do przodu – prostuj nogi i plecy jednocześnie.','Na górze ściśnij pośladki, potem kontrolowanie opuść ciężar po nogach.'],
- tips:'Plecy nigdy nie są zaokrąglone. Ciężar jedzie blisko ciała. Zaczynaj od lekkiego obciążenia.'},
-{id:'rdl',name:'Martwy ciąg rumuński',group:'Pośladki',eq:'sztanga lub hantle',draw:'bar',
+ b:{h:[122,28],s:[120,46],p:[116,90],k:[120,116],a:[118,142],e:[120,72],w:[122,96]},
+ steps:['Stań na szerokość bioder, ciężar tuż przy goleniach.','Zegnij się w biodrach (pupa do tyłu), plecy proste, chwyć ciężar.','Napnij brzuch i wypchnij biodra do przodu, prostując jednocześnie nogi i plecy.','Na górze ściśnij pośladki, potem kontrolowanie opuść ciężar po nogach.'],
+ tips:'Plecy nigdy nie są zaokrąglone, a ciężar jedzie blisko ciała. Zaczynaj od lekkiego obciążenia.'});
+tp('rdl',{g:'Pośladki',hl:['glute','thigh','torsoL'],mus:'tył uda, pośladki, prostowniki grzbietu',draw:'bar',
  a:{h:[122,28],s:[120,46],p:[116,90],k:[120,116],a:[118,142],e:[120,72],w:[122,96]},
  b:{h:[168,70],s:[154,78],p:[108,88],k:[114,116],a:[116,142],e:[156,100],w:[156,122]},
  steps:['Stań prosto z ciężarem trzymanym przed udami, kolana lekko ugięte.','Odpychaj biodra do tyłu, ciężar sunie po udach i łydkach.','Zejdź do momentu mocnego rozciągnięcia z tyłu ud (zwykle do połowy łydek).','Wypchnij biodra do przodu i wróć do pozycji stojącej.'],
- tips:'Ruch wychodzi z bioder, nie z pleców. Kolana prawie nie zmieniają kąta.'},
-{id:'hipthrust',name:'Hip thrust',group:'Pośladki',eq:'ławka / podwyższenie',deco:BOX,
+ tips:'Ruch wychodzi z bioder, nie z pleców. Kolana prawie nie zmieniają kąta.'});
+tp('hipthrust',{g:'Pośladki',hl:['glute'],mus:'pośladki',deco:D.box,
  a:{h:[48,92],s:[66,96],p:[122,126],k:[156,104],a:[160,142],e:[90,108],w:[116,118]},
  b:{h:[48,92],s:[66,96],p:[122,98],k:[160,100],a:[162,142],e:[90,108],w:[116,118]},
  steps:['Usiądź na podłodze, łopatkami oprzyj się o ławkę lub krawędź kanapy.','Stopy na podłodze, kolana ugięte. Opcjonalnie połóż ciężar na biodrach.','Wypchnij biodra w górę, aż tułów i uda będą w jednej linii.','Ściśnij mocno pośladki na górze i opuść biodra kontrolowanie.'],
- tips:'Broda lekko przyciągnięta do klatki, żebra „zamknięte”, nie wyginaj lędźwi.'},
-{id:'mostek',name:'Mostek (unoszenie bioder)',group:'Pośladki',eq:'masa ciała',
+ tips:'Broda lekko przyciągnięta do klatki, żebra „zamknięte”, nie wyginaj lędźwi.'});
+tp('bridge',{g:'Pośladki',hl:['glute'],mus:'pośladki, tył uda',nofoot:false,
  a:{h:[44,128],s:[62,132],p:[112,132],k:[146,106],a:[146,142],e:[84,134],w:[104,136]},
  b:{h:[44,128],s:[62,132],p:[112,102],k:[146,106],a:[146,142],e:[84,134],w:[104,136]},
  steps:['Połóż się na plecach, kolana ugięte, stopy blisko pośladków.','Wciśnij pięty w podłogę i unieś biodra do linii ramiona–biodra–kolana.','Zatrzymaj na sekundę, ściskając pośladki.','Opuść biodra powoli.'],
- tips:'Dobre na rozgrzewkę i na początek. Możesz dołożyć hantel na biodra.'},
-{id:'lydki',name:'Wspięcia na palce (łydki)',group:'Nogi',eq:'masa ciała lub hantle',
- a:{h:[120,28],s:[120,46],p:[120,88],k:[120,116],a:[120,142],e:[122,68],w:[122,90]},
- b:{h:[120,18],s:[120,36],p:[120,78],k:[120,106],a:[120,134],e:[122,58],w:[122,80]},
+ tips:'Dobre na rozgrzewkę i na początek. Możesz dołożyć ciężar na biodra.'});
+tp('calf',{g:'Nogi',hl:['shin'],mus:'łydki',
+ a:{...STAND,e:[122,68],w:[122,90]},b:{h:[120,18],s:[120,36],p:[120,78],k:[120,106],a:[120,134],e:[122,58],w:[122,80]},nofoot:true,
  steps:['Stań prosto, stopy na szerokość bioder.','Wspnij się wysoko na palce.','Zatrzymaj się na górze na sekundę.','Opuść pięty powoli do podłogi.'],
- tips:'Możesz stanąć na schodku, żeby mieć większy zakres ruchu.'},
-{id:'wyciskanie',name:'Wyciskanie leżąc',group:'Klatka',eq:'sztanga lub hantle',draw:'bar',deco:BENCH,
- a:{h:[62,96],s:[78,98],p:[132,98],k:[160,114],a:[158,142],e:[80,78],w:[80,56]},
- b:{h:[62,96],s:[78,98],p:[132,98],k:[160,114],a:[158,142],e:[96,90],w:[80,86]},
+ tips:'Możesz stanąć na schodku, żeby mieć większy zakres ruchu.'});
+tp('bench',{g:'Klatka',hl:['torsoU'],mus:'mięsień piersiowy, triceps, przód barku',draw:'bar',deco:D.bench,
+ a:{...LYING,e:[80,78],w:[80,56]},b:{...LYING,e:[96,90],w:[80,86]},
  steps:['Połóż się na ławce, stopy mocno na podłodze, łopatki ściągnięte.','Chwyć ciężar nieco szerzej niż barki.','Opuść ciężar kontrolowanie do środka klatki piersiowej.','Wypchnij w górę, aż ręce będą prawie proste.'],
- tips:'Łokcie ok. 45° od tułowia, nie 90°. Przy większych ciężarach ćwicz z asekuracją.'},
-{id:'pompki',name:'Pompki',group:'Klatka',eq:'masa ciała',
+ tips:'Łokcie ok. 45° od tułowia, nie 90°. Przy większych ciężarach ćwicz z asekuracją.'});
+tp('incline',{g:'Klatka',hl:['torsoU','shoulder'],mus:'górna część klatki, barki, triceps',draw:'bar',deco:D.incline,
+ a:{h:[58,60],s:[72,76],p:[104,108],k:[136,114],a:[140,142],e:[88,60],w:[103,45]},
+ b:{h:[58,60],s:[72,76],p:[104,108],k:[136,114],a:[140,142],e:[94,90],w:[82,74]},
+ steps:['Ustaw ławkę pod kątem ok. 30–45°. Połóż się, łopatki ściągnięte, stopy na podłodze.','Chwyć ciężar nieco szerzej niż barki.','Opuść ciężar do górnej części klatki piersiowej.','Wypchnij w górę, nie odrywając pleców od oparcia.'],
+ tips:'Zbyt stromy kąt przerzuca pracę na barki. Zostań przy łagodnym skosie.'});
+tp('fly',{g:'Klatka',hl:['torsoU'],mus:'mięsień piersiowy',draw:'db',deco:D.bench,
+ a:{...LYING,e:[80,77],w:[80,56]},b:{...LYING,e:[66,94],w:[54,101]},
+ steps:['Połóż się na ławce, hantle trzymaj nad klatką, ręce lekko ugięte w łokciach.','Opuszczaj ręce łukiem na boki, aż poczujesz rozciąganie klatki.','Zachowaj stały, lekko ugięty kąt w łokciach.','Zbliż hantle łukiem do góry, jakbyś kogoś obejmowała.'],
+ tips:'To nie wyciskanie: ruch jest łukiem, ciężar dobierz lżejszy.'});
+tp('cablefly',{g:'Klatka',hl:['torsoU'],mus:'mięsień piersiowy',cable:[66,10],
+ a:{...STAND,e:[106,54],w:[92,44]},b:{...STAND,e:[130,66],w:[140,86]},
+ steps:['Ustaw wyciągi wysoko, stań w lekkim wykroku, tułów lekko pochylony.','Chwyć uchwyty, ręce szeroko, lekko ugięte w łokciach.','Zbliż ręce łukiem w dół i do przodu, aż spotkają się przed sobą.','Wróć powoli do rozciągnięcia klatki.'],
+ tips:'Nie prostuj rąk do końca. Ściskaj klatkę, nie ciągnij barkami.'});
+tp('chestm',{g:'Klatka',hl:['torsoU'],mus:'mięsień piersiowy, triceps',deco:D.chestM,
+ a:{h:[98,36],s:[98,54],p:[100,98],k:[138,98],a:[140,138],e:[88,74],w:[108,60]},
+ b:{h:[98,36],s:[98,54],p:[100,98],k:[138,98],a:[140,138],e:[120,58],w:[142,56]},
+ steps:['Ustaw wysokość siedziska tak, by uchwyty były na wysokości środka klatki.','Oprzyj plecy, łopatki ściągnięte, stopy na podłodze.','Wypchnij uchwyty do przodu, aż ręce będą prawie proste.','Wróć powoli do pozycji wyjściowej.'],
+ tips:'Dobry wybór na początek: maszyna prowadzi ruch za Ciebie.'});
+tp('pushup',{g:'Klatka',hl:['torsoU'],mus:'mięsień piersiowy, triceps, brzuch',nofoot:true,
  a:{h:[44,66],s:[58,80],p:[118,96],k:[152,118],a:[186,140],e:[58,110],w:[58,140]},
  b:{h:[42,108],s:[58,118],p:[118,124],k:[152,132],a:[186,140],e:[84,128],w:[58,140]},
  steps:['Dłonie na podłodze nieco szerzej niż barki, ciało w jednej linii.','Napnij brzuch i pośladki.','Opuść klatkę piersiową w kierunku podłogi, łokcie ok. 45° do tułowia.','Wypchnij się w górę do prostych rąk.'],
- tips:'Za trudne? Zrób pompki na kolanach albo z dłońmi na ławce.'},
-{id:'wioslowanie',name:'Wiosłowanie w opadzie',group:'Plecy',eq:'sztanga lub hantle',draw:'bar',
- a:{h:[168,64],s:[154,72],p:[108,84],k:[128,112],a:[120,142],e:[154,96],w:[154,120]},
- b:{h:[168,64],s:[154,72],p:[108,84],k:[128,112],a:[120,142],e:[128,80],w:[142,94]},
+ tips:'Za trudne? Zrób pompki na kolanach albo z dłońmi na ławce.'});
+tp('pushupk',{g:'Klatka',hl:['torsoU'],mus:'mięsień piersiowy, triceps',nofoot:true,
+ a:{h:[44,70],s:[58,84],p:[116,100],k:[152,136],a:[184,124],e:[58,112],w:[58,140]},
+ b:{h:[42,112],s:[58,120],p:[116,126],k:[152,136],a:[184,126],e:[84,130],w:[58,140]},
+ steps:['Przyjmij pozycję jak do pompki, ale oprzyj się na kolanach.','Ciało w jednej linii od głowy do kolan, brzuch napięty.','Opuść klatkę w kierunku podłogi.','Wypchnij się w górę do prostych rąk.'],
+ tips:'Świetny sposób, by nauczyć się pompek. Z czasem przejdź na wersję klasyczną.'});
+tp('row',{g:'Plecy',hl:['torsoU'],mus:'najszerszy grzbietu, środek pleców, biceps',draw:'bar',
+ a:{...BENT,e:[154,96],w:[154,120]},b:{...BENT,e:[128,80],w:[142,94]},
  steps:['Pochyl tułów prawie do poziomu, plecy proste, kolana lekko ugięte.','Ciężar trzymaj w wyprostowanych rękach.','Przyciągnij ciężar do dolnej części brzucha, ściągając łopatki.','Opuść powoli.'],
- tips:'Nie bujaj tułowiem. Łokcie prowadź blisko ciała.'},
-{id:'podciaganie',name:'Podciąganie na drążku',group:'Plecy',eq:'drążek',deco:PBAR,
+ tips:'Nie bujaj tułowiem. Łokcie prowadź blisko ciała.'});
+tp('row1',{g:'Plecy',hl:['torsoU'],mus:'najszerszy grzbietu, biceps',draw:'db',deco:D.sideBench,
+ a:{...BENT,e:[154,96],w:[154,120]},b:{...BENT,e:[130,82],w:[142,100]},
+ steps:['Oprzyj jedną dłoń i kolano na ławce, plecy proste i równoległe do podłogi.','Hantel trzymaj wolną ręką, ramię proste.','Przyciągnij hantel do biodra, łokieć prowadź przy tułowiu.','Opuść powoli. Po serii zmień stronę.'],
+ tips:'Nie skręcaj tułowia. Ściągnij łopatkę na górze ruchu.'});
+tp('seatedrow',{g:'Plecy',hl:['torsoU'],mus:'środek pleców, najszerszy grzbietu, biceps',cable:[216,78],deco:D.seatedRow,
+ a:{h:[92,38],s:[92,56],p:[92,100],k:[130,96],a:[164,102],e:[115,62],w:[138,68]},
+ b:{h:[92,38],s:[92,56],p:[92,100],k:[130,96],a:[164,102],e:[84,76],w:[106,84]},
+ steps:['Usiądź przy maszynie, stopy na podnóżku, kolana lekko ugięte.','Plecy proste, klatka otwarta, chwyć uchwyt.','Przyciągnij uchwyt do brzucha, łokcie prowadź blisko tułowia i ściągnij łopatki.','Wróć powoli do wyprostowanych rąk.'],
+ tips:'Nie odchylaj się mocno do tyłu, ruch wykonują plecy.'});
+tp('pulldown',{g:'Plecy',hl:['torsoU','uarm'],mus:'najszerszy grzbietu, biceps',cable:[118,8],deco:D.pulldown,
+ a:{...SEATED,e:[120,36],w:[124,14]},b:{...SEATED,e:[100,76],w:[130,64]},
+ steps:['Ustaw podkładkę na udach, chwyć drążek nieco szerzej niż barki.','Klatka lekko wypchnięta, plecy proste.','Ściągnij drążek do górnej części klatki, łokcie prowadź w dół i do tyłu.','Wróć powoli do wyprostowanych rąk.'],
+ tips:'Ciągnij łokciami, nie rękami. Nie bujaj się, tułów prawie nieruchomy.'});
+tp('pullup',{g:'Plecy',hl:['torsoU','uarm'],mus:'najszerszy grzbietu, biceps',deco:D.pbar,
  a:{h:[120,42],s:[120,56],p:[120,96],k:[118,118],a:[112,140],e:[122,36],w:[120,14]},
- b:{h:[120,26],s:[120,42],p:[120,82],k:[116,104],a:[110,126],e:[140,34],w:[120,14]},
+ b:{h:[120,26],s:[120,42],p:[120,82],k:[116,104],a:[110,126],e:[140,34],w:[120,14]},nofoot:true,
  steps:['Chwyć drążek nachwytem, nieco szerzej niż barki.','Zawiśnij, ściągnij łopatki w dół.','Przyciągnij się, aż broda będzie nad drążkiem.','Opuść się powoli do wyprostowanych rąk.'],
- tips:'Na początek: gumy oporowe, skoki z podłoża albo opuszczanie z góry (tylko faza w dół).'},
-{id:'ohp',name:'Wyciskanie nad głowę',group:'Barki',eq:'sztanga lub hantle',draw:'bar',
- a:{h:[120,30],s:[120,48],p:[120,90],k:[120,116],a:[120,142],e:[134,62],w:[128,44]},
- b:{h:[120,30],s:[120,48],p:[120,90],k:[120,116],a:[120,142],e:[134,28],w:[126,6]},
+ tips:'Na początek: gumy oporowe, skoki z podłoża albo opuszczanie z góry (tylko faza w dół).'});
+tp('gm',{g:'Plecy',hl:['torsoL','glute','thigh'],mus:'prostowniki grzbietu, tył uda, pośladki',draw:'bar',barAt:'s',
+ a:{...STAND,e:[132,62],w:[124,46]},b:{h:[168,70],s:[154,78],p:[108,88],k:[114,116],a:[116,142],e:[142,90],w:[150,74]},
+ steps:['Stań prosto, sztanga na barkach z tyłu, kolana lekko ugięte.','Odepchnij biodra do tyłu i pochyl tułów, plecy cały czas proste.','Zejdź do poziomu lub do rozciągnięcia z tyłu ud.','Wypchnij biodra do przodu i wróć do pionu.'],
+ tips:'Zacznij od bardzo lekkiego obciążenia lub samego gryfu. Technika przed ciężarem.'});
+tp('super',{g:'Plecy',hl:['torsoL','glute'],mus:'prostowniki grzbietu, pośladki',nofoot:true,
+ a:{h:[50,126],s:[66,130],p:[112,134],k:[150,134],a:[188,134],e:[44,134],w:[26,134]},
+ b:{h:[46,114],s:[64,124],p:[112,134],k:[150,126],a:[188,120],e:[44,122],w:[26,114]},
+ steps:['Połóż się na brzuchu, ręce wyciągnięte przed siebie.','Jednocześnie unieś ręce, klatkę i nogi kilka centymetrów od podłogi.','Zatrzymaj na 1–2 sekundy, ściskając pośladki i plecy.','Opuść powoli.'],
+ tips:'Szyja w przedłużeniu kręgosłupa, patrz w podłogę.'});
+tp('shrug',{g:'Plecy',view:'front',hl:['trap'],mus:'czworoboczne (kaptury)',draw:'db',
+ a:{h:[120,30],s:[102,52],p:[108,96],e:[96,74],w:[94,96],k:[110,120],a:[108,142]},
+ b:{h:[120,36],s:[102,44],p:[108,96],e:[96,66],w:[94,88],k:[110,120],a:[108,142]},
+ steps:['Stań prosto, ciężar trzymaj w opuszczonych rękach.','Unieś barki jak najwyżej w stronę uszu.','Zatrzymaj na sekundę.','Opuść barki powoli.'],
+ tips:'Nie kręć barkami w kółko, tylko góra–dół. Ręce proste.'});
+tp('ohp',{g:'Barki',hl:['shoulder'],mus:'barki, triceps',draw:'bar',
+ a:{...STAND,h:[120,30],s:[120,48],p:[120,90],e:[134,62],w:[128,44]},b:{h:[120,32],s:[120,50],p:[120,92],k:[120,118],a:[120,142],e:[134,34],w:[127,14]},
  steps:['Stań prosto, ciężar na wysokości barków, brzuch napięty.','Wypchnij ciężar prosto w górę nad głowę.','Na górze ręce prawie proste, ciężar nad środkiem stóp.','Opuść do barków.'],
- tips:'Nie wyginaj lędźwi do tyłu, ściśnij pośladki.'},
-{id:'biceps',name:'Uginanie ramion (biceps)',group:'Ramiona',eq:'hantle',draw:'db',
- a:{h:[120,28],s:[120,46],p:[120,88],k:[120,116],a:[120,142],e:[124,68],w:[126,92]},
- b:{h:[120,28],s:[120,46],p:[120,88],k:[120,116],a:[120,142],e:[124,68],w:[140,50]},
- steps:['Stań prosto, hantle w dłoniach, ręce przy ciele.','Łokcie przyklej do tułowia.','Zegnij ręce, unosząc hantle do barków.','Opuść powoli do prawie prostych rąk.'],
- tips:'Bez bujania tułowiem. Wybierz ciężar, który pozwala na czyste powtórzenia.'},
-{id:'triceps',name:'Wyciskanie francuskie (triceps)',group:'Ramiona',eq:'hantel lub sztanga',draw:'db',deco:BENCH,
- a:{h:[62,96],s:[78,98],p:[132,98],k:[160,114],a:[158,142],e:[80,78],w:[80,56]},
- b:{h:[62,96],s:[78,98],p:[132,98],k:[160,114],a:[158,142],e:[80,78],w:[62,76]},
- steps:['Połóż się na ławce z ciężarem nad klatką, ręce proste.','Łokcie trzymaj w jednym miejscu, skierowane w sufit.','Zegnij tylko w łokciach – ciężar schodzi w stronę czoła.','Wyprostuj ręce.'],
- tips:'Zacznij od bardzo lekkiego ciężaru, łokcie nie rozjeżdżają się na boki.'},
-{id:'plank',name:'Deska (plank)',group:'Brzuch',eq:'masa ciała',
+ tips:'Nie wyginaj lędźwi do tyłu, ściśnij pośladki.'});
+tp('ohps',{g:'Barki',hl:['shoulder'],mus:'barki, triceps',draw:'db',deco:D.seatBack,
+ a:{h:[120,30],s:[120,48],p:[118,92],k:[156,94],a:[158,140],e:[134,62],w:[128,44]},b:{h:[120,30],s:[120,48],p:[118,92],k:[156,94],a:[158,140],e:[134,34],w:[127,14]},
+ steps:['Usiądź z oparciem pod plecami, hantle na wysokości barków.','Wypchnij ciężary w górę nad głowę.','Na górze ręce prawie proste.','Opuść do poziomu uszu lub barków.'],
+ tips:'Plecy przy oparciu, brzuch napięty, nie wyginaj lędźwi.'});
+tp('lateral',{g:'Barki',view:'front',hl:['shoulder'],mus:'środek barku',draw:'db',
+ a:{h:[120,32],s:[100,50],p:[108,94],e:[96,72],w:[94,94],k:[110,118],a:[108,142]},
+ b:{h:[120,32],s:[100,50],p:[108,94],e:[72,52],w:[46,50],k:[110,118],a:[108,142]},
+ steps:['Stań prosto, hantle przy udach, łokcie lekko ugięte.','Unieś ręce bokiem do wysokości barków.','Zatrzymaj na chwilę na górze.','Opuść powoli, bez opadania ciężaru.'],
+ tips:'Lekkie hantle i czysty ruch. Prowadź łokcie, nie dłonie, nie unoś barków do uszu.'});
+tp('latcable',{g:'Barki',view:'front',hl:['shoulder'],mus:'środek barku',draw:'db',
+ a:{h:[120,32],s:[100,50],p:[108,94],e:[96,72],w:[94,94],k:[110,118],a:[108,142]},
+ b:{h:[120,32],s:[100,50],p:[108,94],e:[72,52],w:[46,50],k:[110,118],a:[108,142]},
+ steps:['Ustaw wyciąg nisko, stań bokiem do maszyny, chwyć uchwyt dalszą ręką.','Ręka lekko ugięta, tułów stabilny.','Unieś rękę bokiem do wysokości barku.','Opuść powoli. Po serii zmień stronę.'],
+ tips:'Linka daje stałe napięcie przez cały ruch, dobierz lekki ciężar.'});
+tp('fraise',{g:'Barki',hl:['shoulder'],mus:'przód barku',draw:'db',
+ a:{...STAND,e:[122,68],w:[124,92]},b:{...STAND,e:[142,54],w:[164,50]},
+ steps:['Stań prosto, ciężar trzymaj przed udami.','Unieś proste ręce przed siebie do wysokości barków.','Zatrzymaj na sekundę.','Opuść powoli.'],
+ tips:'Nie bujaj tułowiem, ruch tylko z barków.'});
+tp('upright',{g:'Barki',hl:['shoulder'],mus:'barki, kaptury',draw:'bar',
+ a:{...STAND,e:[126,72],w:[126,92]},b:{...STAND,e:[142,44],w:[130,54]},
+ steps:['Stań prosto, sztanga lub uchwyt przed udami, chwyt nieco węższy niż barki.','Podciągaj ciężar wzdłuż ciała do poziomu klatki, łokcie prowadzą ruch.','Łokcie nie wyżej niż barki.','Opuść powoli.'],
+ tips:'Przy bólu barków pomiń to ćwiczenie. Zakres do klatki jest bezpieczniejszy.'});
+tp('facepull',{g:'Barki',hl:['shoulder','torsoU'],mus:'tylny bark, górne plecy',cable:[204,38],
+ a:{...STAND,e:[142,48],w:[164,44]},b:{...STAND,e:[106,44],w:[130,36]},
+ steps:['Ustaw linkę na wysokości twarzy, chwyć uchwyt linką.','Odsuń się, ręce wyprostowane przed sobą.','Przyciągnij uchwyt w stronę twarzy, łokcie szeroko i wysoko, ściągnij łopatki.','Wróć powoli.'],
+ tips:'Doskonałe na postawę. Dobierz lekki ciężar.'});
+tp('curl',{g:'Biceps',hl:['uarm'],mus:'biceps',draw:'db',
+ a:{...STAND,e:[124,68],w:[126,92]},b:{...STAND,e:[126,68],w:[140,50]},
+ steps:['Stań prosto, ciężar w dłoniach, ręce przy ciele.','Łokcie przyklej do tułowia.','Zegnij ręce, unosząc ciężar do barków.','Opuść powoli do prawie prostych rąk.'],
+ tips:'Bez bujania tułowiem. Wybierz ciężar, który pozwala na czyste powtórzenia.'});
+tp('curlcable',{g:'Biceps',hl:['uarm'],mus:'biceps',cable:[168,141],
+ a:{...STAND,e:[124,68],w:[130,92]},b:{...STAND,e:[126,68],w:[142,52]},
+ steps:['Ustaw wyciąg nisko, stań przodem do maszyny, chwyć uchwyt.','Łokcie przy tułowiu.','Zegnij ręce, unosząc uchwyt do barków.','Opuść powoli.'],
+ tips:'Linka utrzymuje napięcie w dolnej fazie, ruch wolniejszy i kontrolowany.'});
+tp('preacher',{g:'Biceps',hl:['uarm'],mus:'biceps',draw:'bar',deco:D.preacher,
+ a:{...STAND,s:[122,50],e:[140,78],w:[148,104]},b:{...STAND,s:[122,50],e:[140,78],w:[130,58]},
+ steps:['Usiądź przy modlitewniku, ramiona oprzyj na pochyłej podkładce.','Chwyć ciężar, ręce prawie proste.','Zegnij ręce, unosząc ciężar do barków.','Opuść powoli, bez opadania do końca.'],
+ tips:'Podkładka eliminuje bujanie, więc ciężar dobierz lżejszy niż stojąc.'});
+tp('skull',{g:'Triceps',hl:['uarm'],mus:'triceps',draw:'db',deco:D.bench,
+ a:{...LYING,e:[80,78],w:[80,56]},b:{...LYING,e:[80,78],w:[62,84]},
+ steps:['Połóż się na ławce z ciężarem nad klatką, ręce proste.','Łokcie trzymaj w jednym miejscu, skierowane w sufit.','Zegnij tylko w łokciach, ciężar schodzi w stronę czoła.','Wyprostuj ręce.'],
+ tips:'Zacznij od lekkiego ciężaru, łokcie nie rozjeżdżają się na boki.'});
+tp('pushdown',{g:'Triceps',hl:['uarm'],mus:'triceps',cable:[142,8],
+ a:{...STAND,e:[126,68],w:[142,56]},b:{...STAND,e:[126,68],w:[128,92]},
+ steps:['Stań przy wyciągu, chwyć linkę lub drążek, łokcie przy tułowiu.','Przedramiona w górę, łokcie nieruchome.','Wyprostuj ręce w dół, ściskając triceps.','Wróć powoli do kąta ok. 90°.'],
+ tips:'Ruszają się tylko przedramiona, łokcie przyklejone do tułowia.'});
+tp('overhead',{g:'Triceps',hl:['uarm'],mus:'triceps',draw:'db',
+ a:{h:[120,32],s:[120,50],p:[120,92],k:[120,118],a:[120,142],e:[128,26],w:[110,40]},b:{h:[120,32],s:[120,50],p:[120,92],k:[120,118],a:[120,142],e:[128,32],w:[128,14]},
+ steps:['Stań prosto, ciężar trzymaj oburącz nad głową.','Łokcie skieruj w sufit, blisko głowy.','Opuść ciężar za głowę, zginając ręce w łokciach.','Wyprostuj ręce do góry.'],
+ tips:'Brzuch napięty, nie wyginaj lędźwi. Łokcie nie rozjeżdżają się na boki.'});
+tp('kickb',{g:'Triceps',hl:['uarm'],mus:'triceps',draw:'db',
+ a:{...BENT,e:[126,80],w:[128,106]},b:{...BENT,e:[126,80],w:[100,84]},
+ steps:['Pochyl tułów, plecy proste, łokieć przyciągnij wysoko do tułowia.','Przedramię opuszczone w dół.','Wyprostuj rękę do tyłu, ściskając triceps.','Wróć powoli. Po serii zmień stronę.'],
+ tips:'Lekki ciężar, góra ramienia nieruchoma przez cały czas.'});
+tp('plank',{g:'Brzuch',hl:['torsoL'],mus:'brzuch, cały tułów',nofoot:true,
  a:{h:[44,92],s:[60,102],p:[126,110],k:[154,124],a:[186,140],e:[60,138],w:[92,138]},
  b:{h:[44,92],s:[60,102],p:[126,106],k:[154,122],a:[186,140],e:[60,138],w:[92,138]},
  steps:['Oprzyj się na przedramionach i palcach stóp.','Ciało w jednej prostej linii od głowy do pięt.','Napnij brzuch i pośladki, nie wypychaj bioder w górę ani nie zwisaj.','Utrzymaj pozycję przez zadany czas (np. 30–60 s).'],
- tips:'W tym ćwiczeniu wpisz w polu „powt.” liczbę sekund.'},
-{id:'brzuszki',name:'Brzuszki',group:'Brzuch',eq:'masa ciała',
+ tips:'W tym ćwiczeniu w polu „powt.” wpisz liczbę sekund.'});
+tp('crunch',{g:'Brzuch',hl:['torsoL'],mus:'prosty brzucha',
  a:{h:[58,126],s:[74,130],p:[124,132],k:[152,104],a:[140,140],e:[68,112],w:[60,122]},
  b:{h:[88,98],s:[92,112],p:[124,132],k:[152,104],a:[140,140],e:[102,100],w:[92,100]},
  steps:['Połóż się na plecach, kolana ugięte, ręce lekko przy skroniach.','Dolną część pleców przyciśnij do podłogi.','Unieś łopatki od podłogi, skracając dystans żebra–miednica.','Opuść powoli.'],
- tips:'Nie ciągnij się za szyję. Ruch jest niewielki, ale kontrolowany.'}
+ tips:'Nie ciągnij się za szyję. Ruch jest niewielki, ale kontrolowany.'});
+tp('legraise',{g:'Brzuch',hl:['torsoL','thigh'],mus:'dolny brzuch, zginacze bioder',nofoot:true,
+ a:{h:[50,128],s:[66,132],p:[112,134],k:[112,96],a:[112,58],e:[84,136],w:[104,138]},
+ b:{h:[50,128],s:[66,132],p:[112,134],k:[150,130],a:[188,126],e:[84,136],w:[104,138]},
+ steps:['Połóż się na plecach, ręce wzdłuż ciała, dolne plecy przyciśnięte do podłogi.','Unieś proste nogi do pionu.','Opuszczaj je powoli prawie do podłogi, nie odrywając lędźwi.','Powtórz bez dotykania podłogi.'],
+ tips:'Za trudne? Zegnij kolana.'});
+tp('hangleg',{g:'Brzuch',hl:['torsoL','thigh'],mus:'dolny brzuch, zginacze bioder',deco:D.pbar,nofoot:true,
+ a:{h:[120,34],s:[120,48],p:[120,88],k:[120,116],a:[120,138],e:[122,30],w:[120,14]},
+ b:{h:[120,34],s:[120,48],p:[120,88],k:[158,90],a:[196,90],e:[122,30],w:[120,14]},
+ steps:['Zawiśnij na drążku, barki ściągnięte w dół.','Napnij brzuch i unieś nogi do przodu (proste lub ugięte).','Zatrzymaj na górze i opuść powoli.','Nie bujaj się, ruch kontrolowany.'],
+ tips:'Zacznij od ugiętych kolan. Ćwiczenie wymaga dobrego chwytu.'});
+tp('ccrunch',{g:'Brzuch',hl:['torsoL'],mus:'prosty brzucha',cable:[120,6],nofoot:true,
+ a:{h:[118,38],s:[118,56],p:[114,100],k:[116,138],a:[82,140],e:[128,50],w:[124,38]},
+ b:{h:[158,86],s:[146,76],p:[114,100],k:[116,138],a:[82,140],e:[148,92],w:[152,80]},
+ steps:['Uklęknij przy wyciągu, chwyć linkę i przyciągnij ją do czoła.','Biodra stabilne, plecy proste.','Zegnij tułów w dół, zbliżając żebra do bioder.','Wróć powoli do prostej pozycji.'],
+ tips:'Ruch z brzucha, nie z ramion i bioder. Ciężar dobierz tak, by nie szarpać.'});
+tp('pallof',{g:'Brzuch',hl:['torsoL'],mus:'skośne brzucha, stabilizacja tułowia',cable:[214,52],
+ a:{...STAND,e:[126,68],w:[132,56]},b:{...STAND,e:[146,56],w:[166,52]},
+ steps:['Stań bokiem do wyciągu, uchwyt trzymaj oburącz przy klatce.','Napnij brzuch, nie daj się obrócić.','Wypchnij ręce prosto przed siebie i przytrzymaj sekundę.','Wróć do klatki. Po serii zmień stronę.'],
+ tips:'Im dalej ręce, tym trudniej. Tułów ma pozostać nieruchomy.'});
+tp('russian',{g:'Brzuch',hl:['torsoL'],mus:'skośne brzucha',draw:'db',nofoot:true,
+ a:{h:[80,60],s:[86,76],p:[112,118],k:[148,100],a:[182,82],e:[114,92],w:[138,94]},
+ b:{h:[80,60],s:[86,76],p:[112,118],k:[148,100],a:[182,82],e:[112,84],w:[140,80]},
+ steps:['Usiądź, odchyl tułów do tyłu i unieś stopy nad podłogę.','Trzymaj ciężar lub złączone dłonie przed klatką.','Skręć tułów raz w jedną, raz w drugą stronę.','Oddychaj spokojnie, plecy proste.'],
+ tips:'Łatwiejsza wersja: stopy na podłodze.'});
+tp('legext',{g:'Nogi',hl:['thigh'],mus:'czworogłowe ud',deco:D.legext,
+ a:{h:[66,34],s:[66,52],p:[70,98],k:[110,98],a:[114,137],e:[78,76],w:[88,98]},b:{h:[66,34],s:[66,52],p:[70,98],k:[110,98],a:[149,99],e:[78,76],w:[88,98]},
+ steps:['Ustaw oparcie tak, by kolana były na wysokości osi maszyny.','Wyprostuj nogi do góry, ściskając uda.','Zatrzymaj na sekundę na górze.','Opuść powoli.'],
+ tips:'Nie wyrzucaj ciężaru, ruch płynny i kontrolowany.'});
+tp('legcurl',{g:'Nogi',hl:['thigh'],mus:'tył uda',deco:D.legext,
+ a:{h:[66,34],s:[66,52],p:[70,98],k:[110,98],a:[149,99],e:[78,76],w:[88,98]},b:{h:[66,34],s:[66,52],p:[70,98],k:[110,98],a:[100,136],e:[78,76],w:[88,98]},
+ steps:['Ustaw oparcie i wałek tuż nad piętami.','Zegnij nogi, ściągając wałek pod siebie.','Zatrzymaj na sekundę.','Wróć powoli do wyprostu.'],
+ tips:'Biodra przy siedzisku, ruch z tyłu ud.'});
+tp('lycurl',{g:'Nogi',hl:['thigh'],mus:'tył uda',deco:D.prone,nofoot:true,
+ a:{h:[40,98],s:[56,102],p:[120,102],k:[158,102],a:[196,102],e:[52,116],w:[68,116]},b:{h:[40,98],s:[56,102],p:[120,102],k:[158,102],a:[166,64],e:[52,116],w:[68,116]},
+ steps:['Połóż się na brzuchu, wałek tuż nad piętami.','Zegnij nogi, ściągając piętami do pośladków.','Zatrzymaj na sekundę.','Opuść powoli.'],
+ tips:'Biodra przyciśnięte do ławki, nie podrywaj ich.'});
+tp('legpress',{g:'Nogi',hl:['thigh','glute'],mus:'czworogłowe ud, pośladki',deco:D.mach,plate:true,
+ a:{h:[46,90],s:[58,98],p:[92,124],k:[124,100],a:[150,128],e:[72,110],w:[88,118]},b:{h:[46,90],s:[58,98],p:[92,124],k:[130,110],a:[168,100],e:[72,110],w:[88,118]},
+ steps:['Usiądź, plecy mocno przy oparciu, stopy na platformie na szerokość bioder.','Zwolnij blokadę i opuść platformę, aż kolana będą ugięte ok. 90°.','Wypchnij platformę, nie prostując kolan do końca.','Wróć powoli.'],
+ tips:'Plecy i pupa nie odrywają się od oparcia. Nie blokuj kolan na górze.'});
+tp('kick',{g:'Pośladki',hl:['glute','thigh'],mus:'pośladki',nofoot:true,
+ a:{h:[54,84],s:[68,92],p:[132,96],k:[140,132],a:[176,128],k2:[132,138],a2:[170,140],e:[68,116],w:[68,140]},
+ b:{h:[54,84],s:[68,92],p:[132,96],k:[168,92],a:[204,80],k2:[132,138],a2:[170,140],e:[68,116],w:[68,140]},
+ steps:['Stań na czworakach: dłonie pod barkami, kolana pod biodrami.','Napnij brzuch, plecy proste.','Wyprostuj jedną nogę do tyłu i w górę, ściskając pośladek.','Wróć powoli bez dotykania kolanem podłogi. Po serii zmień nogę.'],
+ tips:'Nie wyginaj lędźwi. Ruch z pośladka, nie z pleców.'});
+tp('kickcable',{g:'Pośladki',hl:['glute','thigh'],mus:'pośladki',nofoot:true,cable:[40,138],
+ a:{h:[54,84],s:[68,92],p:[132,96],k:[140,132],a:[176,128],k2:[132,138],a2:[170,140],e:[68,116],w:[68,140]},
+ b:{h:[54,84],s:[68,92],p:[132,96],k:[168,92],a:[204,80],k2:[132,138],a2:[170,140],e:[68,116],w:[68,140]},
+ steps:['Zapnij mankiet wyciągu na kostce, stań przodem do maszyny, oprzyj się o nią rękami.','Napnij brzuch.','Wyprostuj nogę do tyłu, ściskając pośladek.','Wróć powoli. Po serii zmień nogę.'],
+ tips:'Nie odchylaj tułowia, ruch tylko w biodrze.'});
+tp('abduct',{g:'Pośladki',view:'front',hl:['thigh'],mus:'pośladki (mały i średni), zewnętrzna strona uda',deco:D.abduct,
+ a:{h:[120,36],s:[102,54],p:[110,104],e:[94,76],w:[90,98],k:[112,122],a:[110,142]},b:{h:[120,36],s:[102,54],p:[110,104],e:[94,76],w:[90,98],k:[84,122],a:[76,142]},
+ steps:['Usiądź przy maszynie, plecy przy oparciu, podkładki po zewnętrznej stronie kolan.','Odsuń nogi na boki, napinając pośladki.','Zatrzymaj sekundę na maksymalnym rozwarciu.','Wróć powoli.'],
+ tips:'Lekko pochyl tułów do przodu, żeby mocniej poczuć pośladki.'});
+tp('adduct',{g:'Nogi',view:'front',hl:['thigh'],mus:'przywodziciele (wewnętrzna strona uda)',deco:D.abduct,
+ a:{h:[120,36],s:[102,54],p:[110,104],e:[94,76],w:[90,98],k:[84,122],a:[76,142]},b:{h:[120,36],s:[102,54],p:[110,104],e:[94,76],w:[90,98],k:[112,122],a:[110,142]},
+ steps:['Usiądź przy maszynie, plecy przy oparciu, podkładki po wewnętrznej stronie kolan.','Zbliż nogi do siebie, napinając wewnętrzną stronę ud.','Zatrzymaj sekundę.','Wróć powoli.'],
+ tips:'Zakres ruchu dobierz tak, by nie czuć bólu w pachwinach.'});
+
+/* ===== Lista ćwiczeń: [id, nazwa, szablon, opcje] =====
+   Opcje: g=grupa, eq=sprzęt, draw/barAt/cable/deco=wygląd, hl=podświetlenie, mus=mięśnie, tip=dodatkowa wskazówka */
+const LIST=[
+ ['przysiad','Przysiad (masa ciała)','squat',{eq:'masa ciała'}],
+ ['przysiad-sztanga','Przysiad ze sztangą','squat',{eq:'sztanga',draw:'bar',barAt:'s',tip:'Sztanga leży na mięśniach grzbietu, nie na karku.'}],
+ ['przysiad-przedni','Przysiad przedni','squat',{eq:'sztanga',draw:'bar',tip:'Łokcie wysoko, sztanga na przodzie barków.'}],
+ ['przysiad-goblet','Przysiad goblet (hantel lub kettlebell)','squat',{eq:'hantel lub kettlebell',draw:'kb',tip:'Ciężar trzymaj tuż przy klatce. Dobre na naukę techniki.'}],
+ ['przysiad-smith','Przysiad na suwnicy Smitha','squat',{eq:'suwnica Smitha',draw:'bar',barAt:'s',deco:D.smith}],
+ ['hack','Przysiad hack (maszyna)','squat',{eq:'maszyna',deco:D.hack}],
+ ['legpress','Wypychanie nóg na suwnicy (leg press)','legpress',{eq:'maszyna'}],
+ ['legext','Prostowanie nóg na maszynie','legext',{eq:'maszyna'}],
+ ['legcurl','Uginanie nóg siedząc','legcurl',{eq:'maszyna'}],
+ ['lycurl','Uginanie nóg leżąc','lycurl',{eq:'maszyna'}],
+ ['wykroki','Wykroki','lunge',{eq:'masa ciała lub hantle'}],
+ ['wykroki-hantle','Wykroki z hantlami','lunge',{eq:'hantle',draw:'db'}],
+ ['wykroki-sztanga','Wykroki ze sztangą','lunge',{eq:'sztanga',draw:'bar',barAt:'s'}],
+ ['split','Przysiad split (jedna noga z tyłu)','lunge',{eq:'masa ciała lub hantle',tip:'Tylna stopa może leżeć na ławce.'}],
+ ['lydki','Wspięcia na palce (łydki)','calf',{eq:'masa ciała lub hantle'}],
+ ['lydki-maszyna','Wspięcia na palce na maszynie','calf',{eq:'maszyna'}],
+ ['adduct','Przywodzenie nóg na maszynie','adduct',{eq:'maszyna'}],
+
+ ['hipthrust','Hip thrust','hipthrust',{eq:'ławka, opcjonalnie sztanga'}],
+ ['hipthrust-sztanga','Hip thrust ze sztangą','hipthrust',{eq:'sztanga i ławka',draw:'bar',barAt:'p'}],
+ ['mostek','Mostek (unoszenie bioder)','bridge',{eq:'masa ciała'}],
+ ['mostek-jednonoz','Mostek jednonóż','bridge',{eq:'masa ciała',tip:'Druga noga wyprostowana w górze. Biodra utrzymuj prosto.'}],
+ ['kick','Odkopy na czworakach','kick',{eq:'masa ciała'}],
+ ['kick-wyciag','Odkopy z wyciągiem','kickcable',{eq:'wyciąg'}],
+ ['rdl','Martwy ciąg rumuński','rdl',{eq:'sztanga lub hantle'}],
+ ['rdl-hantle','Martwy ciąg rumuński z hantlami','rdl',{eq:'hantle',draw:'db'}],
+ ['rdl-proste','Martwy ciąg na prostych nogach','rdl',{eq:'sztanga lub hantle',tip:'Nogi prawie proste, mocne rozciągnięcie tyłu ud.'}],
+ ['abduct','Odwodzenie nóg na maszynie','abduct',{eq:'maszyna'}],
+
+ ['martwy','Martwy ciąg','deadlift',{eq:'sztanga lub hantle'}],
+ ['martwy-hantle','Martwy ciąg z hantlami','deadlift',{eq:'hantle',draw:'db'}],
+ ['gm','Good morning (skłony ze sztangą)','gm',{eq:'sztanga'}],
+ ['super','Superman (unoszenie na brzuchu)','super',{eq:'masa ciała'}],
+ ['wioslowanie','Wiosłowanie w opadzie (sztanga)','row',{eq:'sztanga lub hantle'}],
+ ['wioslowanie-hantle','Wiosłowanie w opadzie z hantlami','row',{eq:'hantle',draw:'db'}],
+ ['wioslowanie-1','Wiosłowanie jednorącz z hantlą','row1',{eq:'hantel i ławka'}],
+ ['tbar','Wiosłowanie T-bar','row',{eq:'T-bar lub sztanga w rogu'}],
+ ['wioslowanie-smith','Wiosłowanie na suwnicy Smitha','row',{eq:'suwnica Smitha'}],
+ ['wioslowanie-wyciag','Wiosłowanie siedząc na wyciągu','seatedrow',{eq:'wyciąg dolny'}],
+ ['sciaganie','Ściąganie drążka wyciągu do klatki','pulldown',{eq:'wyciąg górny'}],
+ ['sciaganie-v','Ściąganie wąskim uchwytem V','pulldown',{eq:'wyciąg górny, uchwyt V'}],
+ ['sciaganie-pod','Ściąganie podchwytem','pulldown',{eq:'wyciąg górny',hl:['torsoU','uarm']}],
+ ['podciaganie','Podciąganie nachwytem','pullup',{eq:'drążek'}],
+ ['podciaganie-chin','Podciąganie podchwytem (chin-up)','pullup',{eq:'drążek',tip:'Podchwyt mocniej angażuje biceps.'}],
+ ['podciaganie-gumy','Podciąganie z gumą','pullup',{eq:'drążek i guma',tip:'Guma pod kolanem lub stopą odciąża na początku.'}],
+ ['szrugsy','Szrugsy z hantlami','shrug',{eq:'hantle'}],
+ ['szrugsy-sztanga','Szrugsy ze sztangą','shrug',{eq:'sztanga',draw:'bar'}],
+
+ ['wyciskanie','Wyciskanie sztangi leżąc','bench',{eq:'sztanga i ławka'}],
+ ['wyciskanie-hantle','Wyciskanie hantli leżąc','bench',{eq:'hantle i ławka',draw:'db'}],
+ ['wyciskanie-skos','Wyciskanie sztangi na skosie dodatnim','incline',{eq:'sztanga i ławka skośna'}],
+ ['wyciskanie-skos-hantle','Wyciskanie hantli na skosie dodatnim','incline',{eq:'hantle i ławka skośna',draw:'db'}],
+ ['wyciskanie-smith','Wyciskanie na suwnicy Smitha','bench',{eq:'suwnica Smitha',deco:D.bench+D.smith}],
+ ['wyciskanie-maszyna','Wyciskanie na maszynie (klatka)','chestm',{eq:'maszyna'}],
+ ['butterfly','Rozpiętki na maszynie (butterfly)','chestm',{eq:'maszyna',tip:'Uchwyty zbliżaj łukiem przed klatką, nie prostuj rąk do końca.'}],
+ ['rozpietki','Rozpiętki z hantlami leżąc','fly',{eq:'hantle i ławka'}],
+ ['krzyzowanie','Krzyżowanie linek na wyciągu','cablefly',{eq:'wyciągi'}],
+ ['pompki','Pompki','pushup',{eq:'masa ciała'}],
+ ['pompki-kolana','Pompki na kolanach','pushupk',{eq:'masa ciała'}],
+
+ ['ohp','Wyciskanie sztangi nad głowę (stojąc)','ohp',{eq:'sztanga lub hantle'}],
+ ['ohp-hantle','Wyciskanie hantli nad głowę (stojąc)','ohp',{eq:'hantle',draw:'db'}],
+ ['ohp-siedzac','Wyciskanie hantli nad głowę (siedząc)','ohps',{eq:'hantle i ławka z oparciem'}],
+ ['arnold','Wyciskanie Arnolda','ohps',{eq:'hantle',tip:'Zaczynasz z dłońmi do siebie i obracasz je w trakcie wyciskania.'}],
+ ['ohp-maszyna','Wyciskanie nad głowę na maszynie','ohps',{eq:'maszyna',draw:null}],
+ ['boki','Unoszenie hantli bokiem','lateral',{eq:'hantle'}],
+ ['boki-wyciag','Unoszenie ramienia bokiem na wyciągu','latcable',{eq:'wyciąg dolny'}],
+ ['przod','Unoszenie hantli przodem','fraise',{eq:'hantle'}],
+ ['przod-sztanga','Unoszenie sztangi przodem','fraise',{eq:'sztanga',draw:'bar'}],
+ ['upright','Podciąganie sztangi wzdłuż ciała','upright',{eq:'sztanga lub hantle'}],
+ ['facepull','Face pull','facepull',{eq:'wyciąg z linką'}],
+
+ ['biceps','Uginanie ramion z hantlami','curl',{eq:'hantle'}],
+ ['biceps-sztanga','Uginanie ramion ze sztangą','curl',{eq:'sztanga',draw:'bar'}],
+ ['biceps-ez','Uginanie ramion ze sztangą łamaną','curl',{eq:'sztanga łamana (EZ)',draw:'bar'}],
+ ['biceps-mlotki','Uginanie młotkowe','curl',{eq:'hantle',tip:'Dłonie skierowane do siebie przez cały ruch.'}],
+ ['biceps-nacz','Uginanie ramion naprzemiennie','curl',{eq:'hantle',tip:'Uginasz jedną rękę, potem drugą.'}],
+ ['biceps-wyciag','Uginanie ramion na wyciągu','curlcable',{eq:'wyciąg dolny'}],
+ ['biceps-modlitewnik','Uginanie na modlitewniku','preacher',{eq:'modlitewnik i sztanga'}],
+
+ ['triceps','Wyciskanie francuskie','skull',{eq:'sztanga łamana lub hantle'}],
+ ['triceps-hantle','Wyciskanie francuskie z hantlami','skull',{eq:'hantle i ławka'}],
+ ['wyciskanie-waskie','Wyciskanie sztangi wąskim chwytem','bench',{eq:'sztanga i ławka',g:'Triceps',hl:['uarm'],mus:'triceps, klatka',tip:'Chwyt na szerokość barków, łokcie blisko tułowia.'}],
+ ['pushdown','Prostowanie ramion na wyciągu (linka)','pushdown',{eq:'wyciąg górny, linka'}],
+ ['pushdown-drazek','Prostowanie ramion na wyciągu (drążek)','pushdown',{eq:'wyciąg górny, drążek'}],
+ ['overhead','Prostowanie ramion nad głową (hantel)','overhead',{eq:'hantel'}],
+ ['overhead-wyciag','Prostowanie ramion nad głową na wyciągu','overhead',{eq:'wyciąg dolny',draw:null,cable:[84,142]}],
+ ['kickb','Prostowanie ramienia w opadzie','kickb',{eq:'hantel'}],
+
+ ['plank','Deska (plank)','plank',{eq:'masa ciała'}],
+ ['brzuszki','Brzuszki','crunch',{eq:'masa ciała'}],
+ ['unoszenie-nog','Unoszenie nóg leżąc','legraise',{eq:'masa ciała'}],
+ ['unoszenie-zwis','Unoszenie nóg w zwisie','hangleg',{eq:'drążek'}],
+ ['brzuszki-wyciag','Brzuszki na wyciągu (klęcząc)','ccrunch',{eq:'wyciąg górny z linką'}],
+ ['pallof','Pallof press','pallof',{eq:'wyciąg'}],
+ ['russian','Skręty rosyjskie','russian',{eq:'masa ciała lub talerz'}]
 ];
+const BUILTIN=LIST.map(([id,name,tid,o])=>{
+ const t=T[tid];o=o||{};
+ const ex={id,name,tpl:tid,group:o.g||t.g,eq:o.eq||'',view:t.view,a:t.a,b:t.b,
+  deco:o.deco!==undefined?o.deco:t.deco,hl:o.hl||t.hl,mus:o.mus||t.mus,nofoot:t.nofoot,face:t.face,plate:t.plate,
+  draw:o.draw!==undefined?o.draw:t.draw,barAt:o.barAt||t.barAt,cable:o.cable||t.cable,
+  steps:t.steps,tips:[t.tips,o.tip].filter(Boolean).join(' ')};
+ return ex;
+});
 
 /* ===== Stan i zapis ===== */
 const KEY='trening_v1';
 let S={plans:[],logs:[],custom:[],active:null,rest:90};
 let storageOK=true;
 try{const r=localStorage.getItem(KEY);if(r){const d=JSON.parse(r);S=Object.assign(S,d)}}catch(e){storageOK=false}
+S.custom.forEach(e=>{if(e.group==='Ramiona')e.group='Biceps'});
 function save(){try{localStorage.setItem(KEY,JSON.stringify(S))}catch(e){storageOK=false}}
 const uid=()=>Date.now().toString(36)+Math.random().toString(36).slice(2,6);
 const esc=s=>String(s==null?'':s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -163,20 +507,7 @@ const allEx=()=>BUILTIN.concat(S.custom);
 const getEx=id=>allEx().find(e=>e.id===id);
 const num=v=>{const n=parseFloat(String(v).replace(',','.'));return isNaN(n)?0:n};
 
-/* ===== Rysowanie postaci ===== */
-const lerp=(a,b,t)=>a+(b-a)*t;
-function figSVG(ex,t){
- const j={};for(const k in ex.a){const A=ex.a[k],B=ex.b[k]||A;j[k]=[lerp(A[0],B[0],t).toFixed(1),lerp(A[1],B[1],t).toFixed(1)]}
- const L=(p,q)=>`<line x1="${p[0]}" y1="${p[1]}" x2="${q[0]}" y2="${q[1]}"/>`;
- let s=`<svg viewBox="0 0 240 160" class="fig"><line class="floor" x1="10" y1="143" x2="230" y2="143"/>${ex.deco||''}`;
- s+=L(j.s,j.p)+L(j.p,j.k)+L(j.k,j.a)+L(j.s,j.e)+L(j.e,j.w);
- if(j.k2)s+=L(j.p,j.k2)+L(j.k2,j.a2);
- s+=`<circle class="head" cx="${j.h[0]}" cy="${j.h[1]}" r="9"/>`;
- if(ex.draw==='bar')s+=`<circle class="eq" cx="${j.w[0]}" cy="${j.w[1]}" r="7"/>`;
- if(ex.draw==='db')s+=`<circle class="eq" cx="${j.w[0]}" cy="${j.w[1]}" r="5"/>`;
- return s+'</svg>';
-}
-function thumb(ex){return ex.img?`<img src="${ex.img}" alt="">`:figSVG(ex,0.5)}
+function thumb(ex){return ex.img?`<img src="${ex.img}" alt="">`:ex.a?figSVG(ex,0.5).replace('viewBox="0 0 240 160"','viewBox="24 4 192 148"'):'<span style="font-size:26px">🏋️</span>'}
 
 /* ===== Nawigacja i widoki ===== */
 let tab='home',view=null,edit=null,LIB={q:'',g:''},PK={q:'',g:''},pickCb=null,animT=null;
@@ -335,13 +666,13 @@ function pickEx(id){const cb=pickCb;closeModal();if(cb)cb(id)}
 function bestKg(id){let b=0;S.logs.forEach(l=>l.entries.forEach(e=>{if(e.ex===id)e.sets.forEach(s=>{if(s.kg>b)b=s.kg})}));return b}
 function openDetail(id){
  const ex=getEx(id);if(!ex)return;const b=bestKg(id);
- const pic=ex.img?`<div class="big"><img src="${ex.img}" alt=""></div>`:`<div class="big" id="anim">${figSVG(ex,0)}</div><div class="row" style="margin-top:8px"><button class="sec sm" style="flex:1" onclick="animMode(0)">Start</button><button class="sec sm" style="flex:1" onclick="animMode('play')">▶ Animacja</button><button class="sec sm" style="flex:1" onclick="animMode(1)">Koniec</button></div>`;
+ const pic=ex.img?`<div class="big"><img src="${ex.img}" alt=""></div>`:!ex.a?'':`<div class="big" id="anim">${figSVG(ex,0)}</div><div class="row" style="margin-top:8px"><button class="sec sm" style="flex:1" onclick="animMode(0)">Start</button><button class="sec sm" style="flex:1" onclick="animMode('play')">▶ Animacja</button><button class="sec sm" style="flex:1" onclick="animMode(1)">Koniec</button></div>`;
  modal(`<div class="row sp"><h2 style="margin:0">${esc(ex.name)}</h2><button class="sec sm" onclick="closeModal()">Zamknij</button></div>
- <div class="mut" style="margin:4px 0 10px">${esc(ex.group)}${ex.eq?' · '+esc(ex.eq):''}${b?' · Twój rekord: '+b+' kg':''}</div>${pic}
+ <div class="mut" style="margin:4px 0 4px">${esc(ex.group)}${ex.eq?' · '+esc(ex.eq):''}${b?' · Twój rekord: '+b+' kg':''}</div>${ex.mus?`<div class="mut" style="margin-bottom:10px">Pracują: ${esc(ex.mus)} <span style="color:var(--hl,#ff7a59)">(zaznaczone na rysunku)</span></div>`:'<div style="height:6px"></div>'}${pic}
  <h2>Jak wykonać</h2><ol>${(ex.steps||[]).map(s=>`<li>${esc(s)}</li>`).join('')}</ol>
  ${ex.tips?`<div class="card" style="background:var(--acc2)"><b>Wskazówka:</b> ${esc(ex.tips)}</div>`:''}
  ${ex.custom?`<button class="bad full" onclick="delCustom('${ex.id}')">Usuń to ćwiczenie</button>`:''}`);
- if(!ex.img){window._ex=ex;animMode('play')}
+ if(!ex.img&&ex.a){window._ex=ex;animMode('play')}
 }
 let ph=0,mode='play';
 function animMode(m){
