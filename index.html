@@ -1,0 +1,417 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Mój Trening</title>
+<meta name="theme-color" content="#6c5ce7">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="Trening">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<link rel="icon" href="icons/icon-192.png">
+
+<style>
+:root{--bg:#f6f5fb;--card:#fff;--ink:#1f1d2b;--mut:#6b6880;--acc:#6c5ce7;--acc2:#efecff;--ok:#1fa971;--bad:#d64545;--line:#e6e3f2}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;background:var(--bg);color:var(--ink);font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;font-size:16px}
+#app{max-width:520px;margin:0 auto;padding:14px 14px calc(150px + env(safe-area-inset-bottom))}
+h1{font-size:24px;margin:6px 0 14px}h2{font-size:18px;margin:18px 0 8px}h3{margin:0;font-size:16px}
+.card{background:var(--card);border-radius:16px;padding:14px;margin-bottom:12px;box-shadow:0 1px 3px rgba(40,30,90,.08)}
+.mut{color:var(--mut);font-size:14px}
+button{font:inherit;border:0;border-radius:12px;padding:11px 16px;background:var(--acc);color:#fff;font-weight:600;cursor:pointer}
+button.sec{background:var(--acc2);color:var(--acc)}button.bad{background:#fdeaea;color:var(--bad)}button.sm{padding:7px 11px;font-size:14px}
+button.full{width:100%}
+.row{display:flex;gap:8px;align-items:center}.row.sp{justify-content:space-between}.wrap{flex-wrap:wrap}
+input,select,textarea{font:inherit;border:1.5px solid var(--line);border-radius:10px;padding:10px;background:#fff;color:var(--ink);width:100%}
+input:focus,textarea:focus,select:focus{outline:2px solid var(--acc);border-color:transparent}
+.nav{position:fixed;left:0;right:0;bottom:0;background:#fff;border-top:1px solid var(--line);display:flex;justify-content:center;padding-bottom:env(safe-area-inset-bottom);z-index:20}
+.nav div{display:flex;width:100%;max-width:520px}
+.nav button{flex:1;background:none;color:var(--mut);border-radius:0;padding:10px 4px;font-size:12px;display:flex;flex-direction:column;align-items:center;gap:2px}
+.nav button span{font-size:21px}.nav button.on{color:var(--acc)}
+.chips{display:flex;gap:6px;overflow-x:auto;padding:4px 0 10px}.chip{flex:none;background:#fff;color:var(--mut);border:1.5px solid var(--line);padding:6px 12px;border-radius:99px;font-size:14px;font-weight:500}
+.chip.on{background:var(--acc);color:#fff;border-color:var(--acc)}
+.ex{display:flex;gap:10px;align-items:center;padding:8px;margin-bottom:8px;background:#fff;border-radius:14px;box-shadow:0 1px 3px rgba(40,30,90,.08)}
+.ex .th{width:84px;height:56px;flex:none;background:var(--acc2);border-radius:10px;overflow:hidden;display:flex;align-items:center;justify-content:center}
+.ex .th img{width:100%;height:100%;object-fit:cover}.ex .tx{flex:1;min-width:0}
+.fig{width:100%;height:100%;display:block}
+.fig line{stroke:#2b2750;stroke-width:5;stroke-linecap:round}.fig .floor{stroke:#cfcbe6;stroke-width:2}
+.fig .head{fill:#2b2750}.fig .eq{fill:var(--acc)}.fig .deco{fill:#d9d4f5;stroke:none}.fig .deco2{stroke:#9a90e0;stroke-width:4}
+.big{background:var(--acc2);border-radius:16px;overflow:hidden;aspect-ratio:3/2}
+.big img{width:100%;height:100%;object-fit:contain}
+.ov{position:fixed;inset:0;background:rgba(20,15,50,.5);z-index:50;display:flex;align-items:flex-end;justify-content:center}
+.sheet{background:var(--bg);width:100%;max-width:520px;max-height:92vh;overflow:auto;border-radius:22px 22px 0 0;padding:16px 16px calc(24px + env(safe-area-inset-bottom))}
+ol{padding-left:20px;margin:8px 0}ol li{margin-bottom:6px}
+.sethead,.set{display:grid;grid-template-columns:34px 1fr 1fr 46px;gap:8px;align-items:center;margin-bottom:6px}
+.sethead{font-size:12px;color:var(--mut);text-align:center}.set .n{text-align:center;font-weight:700;color:var(--mut)}
+.set input{text-align:center;padding:9px 4px}
+.chk{background:#ecebf3;color:#9d9bb0;padding:9px 0}.set.done .chk{background:var(--ok);color:#fff}.set.done input{background:#e8f8f0}
+.rest{position:fixed;left:0;right:0;bottom:calc(62px + env(safe-area-inset-bottom));display:flex;justify-content:center;z-index:15;padding:0 14px}
+.rest div{max-width:492px;width:100%;background:#1f1d2b;color:#fff;border-radius:14px;padding:10px 14px;display:flex;align-items:center;justify-content:space-between}
+.rest b{font-size:22px}.rest button{background:#3b3857;padding:7px 12px}
+.warn{background:#fff4d6;color:#7a5a00;border-radius:12px;padding:10px 12px;margin-bottom:12px;font-size:14px}
+details summary{cursor:pointer;list-style:none}details summary::-webkit-details-marker{display:none}
+.lbl{font-size:13px;color:var(--mut);margin:10px 0 4px;display:block}
+.num{width:64px;text-align:center;padding:8px 4px}
+</style>
+</head>
+<body>
+<div id="app"></div>
+<div id="rest"></div>
+<div class="nav"><div id="nav"></div></div>
+<div id="modal"></div>
+<script>
+/* ===== Ćwiczenia (rysunki: dwie pozy, animacja między nimi) ===== */
+const GROUPS=['Nogi','Pośladki','Plecy','Klatka','Barki','Ramiona','Brzuch'];
+const BENCH='<rect class="deco" x="35" y="104" width="115" height="9" rx="3"/><rect class="deco" x="50" y="113" width="6" height="30"/><rect class="deco" x="130" y="113" width="6" height="30"/>';
+const BOX='<rect class="deco" x="38" y="102" width="50" height="41" rx="4"/>';
+const PBAR='<line class="deco2" x1="70" y1="14" x2="170" y2="14"/>';
+const BUILTIN=[
+{id:'przysiad',name:'Przysiad',group:'Nogi',eq:'masa ciała lub hantel',
+ a:{h:[120,28],s:[120,46],p:[120,88],k:[122,116],a:[120,142],e:[132,58],w:[142,50]},
+ b:{h:[138,46],s:[130,60],p:[100,102],k:[145,108],a:[122,142],e:[148,70],w:[158,62]},
+ steps:['Stań na szerokość bioder lub odrobinę szerzej, palce stóp lekko na zewnątrz.','Napnij brzuch, odepchnij biodra do tyłu i zacznij uginać kolana.','Zejdź w dół, aż uda będą mniej więcej równolegle do podłogi.','Wypchnij się piętami w górę, do pozycji wyjściowej.'],
+ tips:'Kolana idą w kierunku palców stóp, plecy proste, pięty cały czas na podłodze.'},
+{id:'wykroki',name:'Wykroki',group:'Nogi',eq:'masa ciała lub hantle',
+ a:{h:[120,28],s:[120,46],p:[120,88],k:[120,116],a:[120,142],k2:[120,116],a2:[120,142],e:[128,70],w:[122,90]},
+ b:{h:[122,38],s:[122,56],p:[122,98],k:[152,102],a:[152,142],k2:[100,128],a2:[86,142],e:[130,74],w:[122,94]},
+ steps:['Stań prosto, ręce na biodrach lub z hantlami przy ciele.','Zrób duży krok do przodu.','Opuść biodra w dół, aż przednie kolano ma ok. 90°, tylne kolano prawie dotyka podłogi.','Odepchnij się przednią stopą i wróć do pozycji wyjściowej. Zrób powtórzenia na jedną nogę, potem na drugą.'],
+ tips:'Tułów prosto, przednie kolano nie wychodzi mocno przed palce stopy.'},
+{id:'martwy',name:'Martwy ciąg',group:'Plecy',eq:'sztanga lub hantle',
+ a:{h:[166,66],s:[152,74],p:[106,86],k:[128,114],a:[118,142],e:[152,98],w:[150,120]},
+ b:{h:[122,28],s:[120,46],p:[116,90],k:[120,116],a:[118,142],e:[120,72],w:[122,96]},eq:'sztanga lub hantle',draw:'bar',
+ steps:['Stań na szerokość bioder, ciężar tuż przy goleniach.','Zegnij się w biodrach (pupa do tyłu), plecy proste, chwyć ciężar.','Napnij brzuch i wypchnij biodra do przodu – prostuj nogi i plecy jednocześnie.','Na górze ściśnij pośladki, potem kontrolowanie opuść ciężar po nogach.'],
+ tips:'Plecy nigdy nie są zaokrąglone. Ciężar jedzie blisko ciała. Zaczynaj od lekkiego obciążenia.'},
+{id:'rdl',name:'Martwy ciąg rumuński',group:'Pośladki',eq:'sztanga lub hantle',draw:'bar',
+ a:{h:[122,28],s:[120,46],p:[116,90],k:[120,116],a:[118,142],e:[120,72],w:[122,96]},
+ b:{h:[168,70],s:[154,78],p:[108,88],k:[114,116],a:[116,142],e:[156,100],w:[156,122]},
+ steps:['Stań prosto z ciężarem trzymanym przed udami, kolana lekko ugięte.','Odpychaj biodra do tyłu, ciężar sunie po udach i łydkach.','Zejdź do momentu mocnego rozciągnięcia z tyłu ud (zwykle do połowy łydek).','Wypchnij biodra do przodu i wróć do pozycji stojącej.'],
+ tips:'Ruch wychodzi z bioder, nie z pleców. Kolana prawie nie zmieniają kąta.'},
+{id:'hipthrust',name:'Hip thrust',group:'Pośladki',eq:'ławka / podwyższenie',deco:BOX,
+ a:{h:[48,92],s:[66,96],p:[122,126],k:[156,104],a:[160,142],e:[90,108],w:[116,118]},
+ b:{h:[48,92],s:[66,96],p:[122,98],k:[160,100],a:[162,142],e:[90,108],w:[116,118]},
+ steps:['Usiądź na podłodze, łopatkami oprzyj się o ławkę lub krawędź kanapy.','Stopy na podłodze, kolana ugięte. Opcjonalnie połóż ciężar na biodrach.','Wypchnij biodra w górę, aż tułów i uda będą w jednej linii.','Ściśnij mocno pośladki na górze i opuść biodra kontrolowanie.'],
+ tips:'Broda lekko przyciągnięta do klatki, żebra „zamknięte”, nie wyginaj lędźwi.'},
+{id:'mostek',name:'Mostek (unoszenie bioder)',group:'Pośladki',eq:'masa ciała',
+ a:{h:[44,128],s:[62,132],p:[112,132],k:[146,106],a:[146,142],e:[84,134],w:[104,136]},
+ b:{h:[44,128],s:[62,132],p:[112,102],k:[146,106],a:[146,142],e:[84,134],w:[104,136]},
+ steps:['Połóż się na plecach, kolana ugięte, stopy blisko pośladków.','Wciśnij pięty w podłogę i unieś biodra do linii ramiona–biodra–kolana.','Zatrzymaj na sekundę, ściskając pośladki.','Opuść biodra powoli.'],
+ tips:'Dobre na rozgrzewkę i na początek. Możesz dołożyć hantel na biodra.'},
+{id:'lydki',name:'Wspięcia na palce (łydki)',group:'Nogi',eq:'masa ciała lub hantle',
+ a:{h:[120,28],s:[120,46],p:[120,88],k:[120,116],a:[120,142],e:[122,68],w:[122,90]},
+ b:{h:[120,18],s:[120,36],p:[120,78],k:[120,106],a:[120,134],e:[122,58],w:[122,80]},
+ steps:['Stań prosto, stopy na szerokość bioder.','Wspnij się wysoko na palce.','Zatrzymaj się na górze na sekundę.','Opuść pięty powoli do podłogi.'],
+ tips:'Możesz stanąć na schodku, żeby mieć większy zakres ruchu.'},
+{id:'wyciskanie',name:'Wyciskanie leżąc',group:'Klatka',eq:'sztanga lub hantle',draw:'bar',deco:BENCH,
+ a:{h:[62,96],s:[78,98],p:[132,98],k:[160,114],a:[158,142],e:[80,78],w:[80,56]},
+ b:{h:[62,96],s:[78,98],p:[132,98],k:[160,114],a:[158,142],e:[96,90],w:[80,86]},
+ steps:['Połóż się na ławce, stopy mocno na podłodze, łopatki ściągnięte.','Chwyć ciężar nieco szerzej niż barki.','Opuść ciężar kontrolowanie do środka klatki piersiowej.','Wypchnij w górę, aż ręce będą prawie proste.'],
+ tips:'Łokcie ok. 45° od tułowia, nie 90°. Przy większych ciężarach ćwicz z asekuracją.'},
+{id:'pompki',name:'Pompki',group:'Klatka',eq:'masa ciała',
+ a:{h:[44,66],s:[58,80],p:[118,96],k:[152,118],a:[186,140],e:[58,110],w:[58,140]},
+ b:{h:[42,108],s:[58,118],p:[118,124],k:[152,132],a:[186,140],e:[84,128],w:[58,140]},
+ steps:['Dłonie na podłodze nieco szerzej niż barki, ciało w jednej linii.','Napnij brzuch i pośladki.','Opuść klatkę piersiową w kierunku podłogi, łokcie ok. 45° do tułowia.','Wypchnij się w górę do prostych rąk.'],
+ tips:'Za trudne? Zrób pompki na kolanach albo z dłońmi na ławce.'},
+{id:'wioslowanie',name:'Wiosłowanie w opadzie',group:'Plecy',eq:'sztanga lub hantle',draw:'bar',
+ a:{h:[168,64],s:[154,72],p:[108,84],k:[128,112],a:[120,142],e:[154,96],w:[154,120]},
+ b:{h:[168,64],s:[154,72],p:[108,84],k:[128,112],a:[120,142],e:[128,80],w:[142,94]},
+ steps:['Pochyl tułów prawie do poziomu, plecy proste, kolana lekko ugięte.','Ciężar trzymaj w wyprostowanych rękach.','Przyciągnij ciężar do dolnej części brzucha, ściągając łopatki.','Opuść powoli.'],
+ tips:'Nie bujaj tułowiem. Łokcie prowadź blisko ciała.'},
+{id:'podciaganie',name:'Podciąganie na drążku',group:'Plecy',eq:'drążek',deco:PBAR,
+ a:{h:[120,42],s:[120,56],p:[120,96],k:[118,118],a:[112,140],e:[122,36],w:[120,14]},
+ b:{h:[120,26],s:[120,42],p:[120,82],k:[116,104],a:[110,126],e:[140,34],w:[120,14]},
+ steps:['Chwyć drążek nachwytem, nieco szerzej niż barki.','Zawiśnij, ściągnij łopatki w dół.','Przyciągnij się, aż broda będzie nad drążkiem.','Opuść się powoli do wyprostowanych rąk.'],
+ tips:'Na początek: gumy oporowe, skoki z podłoża albo opuszczanie z góry (tylko faza w dół).'},
+{id:'ohp',name:'Wyciskanie nad głowę',group:'Barki',eq:'sztanga lub hantle',draw:'bar',
+ a:{h:[120,30],s:[120,48],p:[120,90],k:[120,116],a:[120,142],e:[134,62],w:[128,44]},
+ b:{h:[120,30],s:[120,48],p:[120,90],k:[120,116],a:[120,142],e:[134,28],w:[126,6]},
+ steps:['Stań prosto, ciężar na wysokości barków, brzuch napięty.','Wypchnij ciężar prosto w górę nad głowę.','Na górze ręce prawie proste, ciężar nad środkiem stóp.','Opuść do barków.'],
+ tips:'Nie wyginaj lędźwi do tyłu, ściśnij pośladki.'},
+{id:'biceps',name:'Uginanie ramion (biceps)',group:'Ramiona',eq:'hantle',draw:'db',
+ a:{h:[120,28],s:[120,46],p:[120,88],k:[120,116],a:[120,142],e:[124,68],w:[126,92]},
+ b:{h:[120,28],s:[120,46],p:[120,88],k:[120,116],a:[120,142],e:[124,68],w:[140,50]},
+ steps:['Stań prosto, hantle w dłoniach, ręce przy ciele.','Łokcie przyklej do tułowia.','Zegnij ręce, unosząc hantle do barków.','Opuść powoli do prawie prostych rąk.'],
+ tips:'Bez bujania tułowiem. Wybierz ciężar, który pozwala na czyste powtórzenia.'},
+{id:'triceps',name:'Wyciskanie francuskie (triceps)',group:'Ramiona',eq:'hantel lub sztanga',draw:'db',deco:BENCH,
+ a:{h:[62,96],s:[78,98],p:[132,98],k:[160,114],a:[158,142],e:[80,78],w:[80,56]},
+ b:{h:[62,96],s:[78,98],p:[132,98],k:[160,114],a:[158,142],e:[80,78],w:[62,76]},
+ steps:['Połóż się na ławce z ciężarem nad klatką, ręce proste.','Łokcie trzymaj w jednym miejscu, skierowane w sufit.','Zegnij tylko w łokciach – ciężar schodzi w stronę czoła.','Wyprostuj ręce.'],
+ tips:'Zacznij od bardzo lekkiego ciężaru, łokcie nie rozjeżdżają się na boki.'},
+{id:'plank',name:'Deska (plank)',group:'Brzuch',eq:'masa ciała',
+ a:{h:[44,92],s:[60,102],p:[126,110],k:[154,124],a:[186,140],e:[60,138],w:[92,138]},
+ b:{h:[44,92],s:[60,102],p:[126,106],k:[154,122],a:[186,140],e:[60,138],w:[92,138]},
+ steps:['Oprzyj się na przedramionach i palcach stóp.','Ciało w jednej prostej linii od głowy do pięt.','Napnij brzuch i pośladki, nie wypychaj bioder w górę ani nie zwisaj.','Utrzymaj pozycję przez zadany czas (np. 30–60 s).'],
+ tips:'W tym ćwiczeniu wpisz w polu „powt.” liczbę sekund.'},
+{id:'brzuszki',name:'Brzuszki',group:'Brzuch',eq:'masa ciała',
+ a:{h:[58,126],s:[74,130],p:[124,132],k:[152,104],a:[140,140],e:[68,112],w:[60,122]},
+ b:{h:[88,98],s:[92,112],p:[124,132],k:[152,104],a:[140,140],e:[102,100],w:[92,100]},
+ steps:['Połóż się na plecach, kolana ugięte, ręce lekko przy skroniach.','Dolną część pleców przyciśnij do podłogi.','Unieś łopatki od podłogi, skracając dystans żebra–miednica.','Opuść powoli.'],
+ tips:'Nie ciągnij się za szyję. Ruch jest niewielki, ale kontrolowany.'}
+];
+
+/* ===== Stan i zapis ===== */
+const KEY='trening_v1';
+let S={plans:[],logs:[],custom:[],active:null,rest:90};
+let storageOK=true;
+try{const r=localStorage.getItem(KEY);if(r){const d=JSON.parse(r);S=Object.assign(S,d)}}catch(e){storageOK=false}
+function save(){try{localStorage.setItem(KEY,JSON.stringify(S))}catch(e){storageOK=false}}
+const uid=()=>Date.now().toString(36)+Math.random().toString(36).slice(2,6);
+const esc=s=>String(s==null?'':s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const allEx=()=>BUILTIN.concat(S.custom);
+const getEx=id=>allEx().find(e=>e.id===id);
+const num=v=>{const n=parseFloat(String(v).replace(',','.'));return isNaN(n)?0:n};
+
+/* ===== Rysowanie postaci ===== */
+const lerp=(a,b,t)=>a+(b-a)*t;
+function figSVG(ex,t){
+ const j={};for(const k in ex.a){const A=ex.a[k],B=ex.b[k]||A;j[k]=[lerp(A[0],B[0],t).toFixed(1),lerp(A[1],B[1],t).toFixed(1)]}
+ const L=(p,q)=>`<line x1="${p[0]}" y1="${p[1]}" x2="${q[0]}" y2="${q[1]}"/>`;
+ let s=`<svg viewBox="0 0 240 160" class="fig"><line class="floor" x1="10" y1="143" x2="230" y2="143"/>${ex.deco||''}`;
+ s+=L(j.s,j.p)+L(j.p,j.k)+L(j.k,j.a)+L(j.s,j.e)+L(j.e,j.w);
+ if(j.k2)s+=L(j.p,j.k2)+L(j.k2,j.a2);
+ s+=`<circle class="head" cx="${j.h[0]}" cy="${j.h[1]}" r="9"/>`;
+ if(ex.draw==='bar')s+=`<circle class="eq" cx="${j.w[0]}" cy="${j.w[1]}" r="7"/>`;
+ if(ex.draw==='db')s+=`<circle class="eq" cx="${j.w[0]}" cy="${j.w[1]}" r="5"/>`;
+ return s+'</svg>';
+}
+function thumb(ex){return ex.img?`<img src="${ex.img}" alt="">`:figSVG(ex,0.5)}
+
+/* ===== Nawigacja i widoki ===== */
+let tab='home',view=null,edit=null,LIB={q:'',g:''},PK={q:'',g:''},pickCb=null,animT=null;
+function go(t){tab=t;view=null;render()}
+function render(){
+ const nav=[['home','🏋️','Trening'],['lib','📖','Ćwiczenia'],['hist','📈','Historia'],['set','⚙️','Ustawienia']];
+ document.getElementById('nav').innerHTML=nav.map(n=>`<button class="${tab===n[0]&&!view?'on':''}" onclick="go('${n[0]}')"><span>${n[1]}</span>${n[2]}</button>`).join('');
+ let h='';
+ const isIOS=/iphone|ipad|ipod/i.test(navigator.userAgent),standalone=window.navigator.standalone||(window.matchMedia&&matchMedia('(display-mode: standalone)').matches);
+ if(isIOS&&!standalone&&!S.hideInstall)h+='<div class="warn"><b>Zainstaluj aplikację:</b> w Safari kliknij Udostępnij (kwadrat ze strzałką) → „Dodaj do ekranu początkowego”. Dopiero z ikony na ekranie wpisuj treningi, bo dane z Safari i z ikony nie są wspólne. <button class="sm sec" style="margin-top:8px" onclick="S.hideInstall=1;save();render()">Rozumiem</button></div>';
+ if(!storageOK)h+='<div class="warn">Uwaga: ta przeglądarka nie zapisuje danych na stałe. Zrób kopię zapasową w Ustawieniach.</div>';
+ if(view==='edit')h+=vEdit();else if(view==='active')h+=vActive();
+ else if(tab==='home')h+=vHome();else if(tab==='lib')h+=vLib();else if(tab==='hist')h+=vHist();else h+=vSet();
+ document.getElementById('app').innerHTML=h;
+ renderRest();
+}
+
+/* --- Home --- */
+function vHome(){
+ let h='<h1>Cześć! 💪</h1>';
+ if(S.active)h+=`<div class="card" style="background:var(--acc);color:#fff"><b>Trening w toku:</b> ${esc(S.active.name)}<div class="row" style="margin-top:10px"><button class="full" style="background:#fff;color:var(--acc)" onclick="view='active';render()">Kontynuuj</button></div></div>`;
+ h+='<div class="row sp"><h2 style="margin:6px 0">Moje treningi</h2><button class="sm" onclick="newPlan()">+ Nowy</button></div>';
+ if(!S.plans.length)h+='<div class="card mut">Nie masz jeszcze żadnego treningu. Kliknij „+ Nowy”, wybierz ćwiczenia z listy i ułóż swój plan.</div>';
+ S.plans.forEach(p=>{
+  h+=`<div class="card"><h3>${esc(p.name)}</h3><div class="mut" style="margin:4px 0 10px">${p.items.map(i=>esc((getEx(i.ex)||{name:'?'}).name)+' '+i.sets+'×'+esc(i.reps)).join(' · ')}</div>
+  <div class="row"><button style="flex:1" onclick="startPlan('${p.id}')">Start</button><button class="sec" onclick="editPlan('${p.id}')">Edytuj</button></div></div>`;
+ });
+ h+='<button class="sec full" onclick="startPlan(null)">Pusty trening (dodam ćwiczenia w trakcie)</button>';
+ return h;
+}
+function newPlan(){edit={id:null,name:'',items:[]};view='edit';render()}
+function editPlan(id){const p=S.plans.find(x=>x.id===id);edit=JSON.parse(JSON.stringify(p));view='edit';render()}
+
+/* --- Edytor planu --- */
+function vEdit(){
+ let h=`<div class="row sp"><button class="sec sm" onclick="view=null;render()">← Wróć</button><h2 style="margin:0">${edit.id?'Edytuj trening':'Nowy trening'}</h2><span></span></div>
+ <label class="lbl">Nazwa treningu</label><input value="${esc(edit.name)}" placeholder="np. Nogi i pośladki" oninput="edit.name=this.value">
+ <h2>Ćwiczenia</h2>`;
+ if(!edit.items.length)h+='<div class="card mut">Dodaj pierwsze ćwiczenie 👇</div>';
+ edit.items.forEach((it,i)=>{const ex=getEx(it.ex)||{name:'(usunięte)',a:null};
+  h+=`<div class="card"><div class="row sp"><h3>${esc(ex.name)}</h3><div class="row"><button class="sec sm" onclick="mv(${i},-1)">↑</button><button class="sec sm" onclick="mv(${i},1)">↓</button><button class="bad sm" onclick="edit.items.splice(${i},1);render()">✕</button></div></div>
+  <div class="row" style="margin-top:10px"><span class="mut">Serie</span><input class="num" inputmode="numeric" value="${it.sets}" oninput="edit.items[${i}].sets=Math.max(1,parseInt(this.value)||1)"><span class="mut">Powt.</span><input class="num" value="${esc(it.reps)}" oninput="edit.items[${i}].reps=this.value"></div></div>`;});
+ h+=`<button class="sec full" onclick="openPicker(id=>{edit.items.push({ex:id,sets:3,reps:'10'});render()})">+ Dodaj ćwiczenie</button>
+ <div class="row" style="margin-top:12px"><button class="full" onclick="savePlan()">Zapisz trening</button></div>`;
+ if(edit.id)h+=`<div style="margin-top:12px"><button class="bad full" onclick="ask('Usunąć ten trening? Historia zostanie.','Usuń',()=>{S.plans=S.plans.filter(p=>p.id!=='${edit.id}');save();view=null;render()})">Usuń trening</button></div>`;
+ return h;
+}
+function mv(i,d){const j=i+d;if(j<0||j>=edit.items.length)return;const t=edit.items[i];edit.items[i]=edit.items[j];edit.items[j]=t;render()}
+function savePlan(){
+ if(!edit.name.trim()){toast('Wpisz nazwę treningu');return}
+ if(!edit.items.length){toast('Dodaj przynajmniej jedno ćwiczenie');return}
+ if(edit.id){const i=S.plans.findIndex(p=>p.id===edit.id);S.plans[i]=edit}else{edit.id=uid();S.plans.push(edit)}
+ save();view=null;render();
+}
+
+/* --- Aktywny trening --- */
+function lastFor(exId){
+ for(let i=S.logs.length-1;i>=0;i--){const e=S.logs[i].entries.find(x=>x.ex===exId);if(e&&e.sets.length)return e.sets}
+ return null;
+}
+function startPlan(id){
+ if(S.active){ask('Masz już trening w toku. Zacząć nowy i porzucić tamten?','Zacznij nowy',()=>{S.active=null;startPlan(id)});return}
+ const p=id?S.plans.find(x=>x.id===id):null;
+ S.active={name:p?p.name:'Trening',start:Date.now(),items:p?p.items.map(it=>mkItem(it.ex,it.sets,it.reps)):[]};
+ save();view='active';render();
+}
+function mkItem(exId,n,reps){
+ const last=lastFor(exId);const sets=[];
+ for(let i=0;i<n;i++){const l=last?(last[i]||last[last.length-1]):null;sets.push({kg:l?String(l.kg):'',reps:l?String(l.reps):String(reps||''),done:false})}
+ return {ex:exId,sets};
+}
+function vActive(){
+ const A=S.active;
+ let h=`<div class="row sp"><button class="sec sm" onclick="view=null;render()">← Wróć</button><button class="sm" onclick="finish()">Zakończ</button></div>
+ <h1 style="margin-bottom:2px">${esc(A.name)}</h1><div class="mut" id="elapsed" style="margin-bottom:12px"></div>`;
+ A.items.forEach((it,ii)=>{
+  const ex=getEx(it.ex);if(!ex)return;const last=lastFor(it.ex);
+  h+=`<div class="card"><div class="row" style="margin-bottom:8px"><div class="th" style="width:70px;height:46px;background:var(--acc2);border-radius:10px;overflow:hidden;flex:none" onclick="openDetail('${ex.id}')">${thumb(ex)}</div>
+  <div style="flex:1;min-width:0" onclick="openDetail('${ex.id}')"><h3>${esc(ex.name)}</h3><div class="mut">${last?'Ostatnio: '+last.map(s=>s.kg+'×'+s.reps).join(', '):'Pierwszy raz 🎉'}</div></div>
+  <button class="bad sm" onclick="rmItem(${ii})">✕</button></div>
+  <div class="sethead"><span>Seria</span><span>kg</span><span>Powt.</span><span>✓</span></div>`;
+  it.sets.forEach((s,si)=>{h+=`<div class="set ${s.done?'done':''}"><span class="n">${si+1}</span>
+   <input inputmode="decimal" placeholder="kg" value="${esc(s.kg)}" oninput="S.active.items[${ii}].sets[${si}].kg=this.value;save()">
+   <input inputmode="decimal" placeholder="powt." value="${esc(s.reps)}" oninput="S.active.items[${ii}].sets[${si}].reps=this.value;save()">
+   <button class="chk" onclick="toggleSet(${ii},${si})">✓</button></div>`});
+  h+=`<div class="row"><button class="sec sm" onclick="addSet(${ii})">+ seria</button>${it.sets.length>1?`<button class="sec sm" onclick="S.active.items[${ii}].sets.pop();save();render()">− seria</button>`:''}</div></div>`;
+ });
+ h+='<button class="sec full" onclick="openPicker(id=>{S.active.items.push(mkItem(id,3,\'10\'));save();render()})">+ Dodaj ćwiczenie</button>';
+ return h;
+}
+function addSet(ii){const s=S.active.items[ii].sets;const l=s[s.length-1];s.push({kg:l?l.kg:'',reps:l?l.reps:'',done:false});save();render()}
+function rmItem(ii){ask('Usunąć to ćwiczenie z treningu?','Usuń',()=>{S.active.items.splice(ii,1);save();render()})}
+let restEnd=0;
+function toggleSet(ii,si){
+ const s=S.active.items[ii].sets[si];s.done=!s.done;save();
+ if(s.done&&S.rest>0){restEnd=Date.now()+S.rest*1000}else if(!s.done){restEnd=0}
+ render();
+}
+function finish(){
+ const A=S.active;
+ const entries=A.items.map(it=>({ex:it.ex,sets:it.sets.filter(s=>s.done).map(s=>({kg:num(s.kg),reps:num(s.reps)}))})).filter(e=>e.sets.length);
+ if(!entries.length){ask('Nie zaznaczyłaś żadnej serii (✓). Zakończyć bez zapisywania?','Zakończ bez zapisu',()=>{S.active=null;restEnd=0;save();view=null;tab='home';render()});return}
+ ask('Zakończyć i zapisać trening?','Zapisz',()=>{
+  S.logs.push({id:uid(),date:A.start,end:Date.now(),name:A.name,entries});
+  S.active=null;restEnd=0;save();view=null;tab='hist';render();toast('Trening zapisany ✅');
+ });
+}
+
+/* --- Odpoczynek / zegar --- */
+function renderRest(){
+ const el=document.getElementById('rest');
+ if(restEnd>Date.now()&&view==='active')el.innerHTML=`<div class="rest"><div><span>Odpoczynek</span><b id="rt"></b><button onclick="restEnd=0;renderRest()">Pomiń</button></div></div>`;
+ else el.innerHTML='';
+ tick();
+}
+function fmt(s){s=Math.max(0,Math.round(s));return Math.floor(s/60)+':'+String(s%60).padStart(2,'0')}
+let beeped=true;
+function tick(){
+ const e=document.getElementById('elapsed');if(e&&S.active)e.textContent='Czas: '+fmt((Date.now()-S.active.start)/1000);
+ const rt=document.getElementById('rt');
+ if(rt){const left=(restEnd-Date.now())/1000;if(left<=0){try{navigator.vibrate&&navigator.vibrate([200,100,200])}catch(x){}restEnd=0;document.getElementById('rest').innerHTML=''}else rt.textContent=fmt(left)}
+}
+setInterval(tick,500);
+
+/* --- Biblioteka --- */
+function listHTML(st,mode){
+ const q=st.q.trim().toLowerCase();
+ const l=allEx().filter(e=>(!st.g||e.group===st.g)&&(!q||e.name.toLowerCase().includes(q)));
+ if(!l.length)return '<div class="mut" style="padding:10px">Nic nie znaleziono.</div>';
+ return l.map(e=>`<div class="ex" onclick="${mode==='pick'?`pickEx('${e.id}')`:`openDetail('${e.id}')`}"><div class="th">${thumb(e)}</div><div class="tx"><h3>${esc(e.name)}</h3><div class="mut">${esc(e.group)}${e.eq?' · '+esc(e.eq):''}</div></div>${mode==='pick'?`<button class="sec sm" onclick="event.stopPropagation();openDetail('${e.id}')">i</button>`:''}</div>`).join('');
+}
+function chipsHTML(st,fn){return '<div class="chips"><button class="chip '+(!st.g?'on':'')+`" onclick="${fn}('')">Wszystkie</button>`+GROUPS.map(g=>`<button class="chip ${st.g===g?'on':''}" onclick="${fn}('${g}')">${g}</button>`).join('')+'</div>'}
+function vLib(){
+ return `<div class="row sp"><h1>Ćwiczenia</h1><button class="sm" onclick="openCustom()">+ Własne</button></div>
+ <input placeholder="Szukaj ćwiczenia…" value="${esc(LIB.q)}" oninput="LIB.q=this.value;document.getElementById('ll').innerHTML=listHTML(LIB,'lib')">
+ <div id="lc">${chipsHTML(LIB,'libG')}</div><div id="ll">${listHTML(LIB,'lib')}</div>`;
+}
+function libG(g){LIB.g=g;document.getElementById('lc').innerHTML=chipsHTML(LIB,'libG');document.getElementById('ll').innerHTML=listHTML(LIB,'lib')}
+
+/* --- Modale --- */
+function modal(html){document.getElementById('modal').innerHTML=`<div class="ov" onclick="if(event.target===this)closeModal()"><div class="sheet">${html}</div></div>`}
+function closeModal(){clearInterval(animT);animT=null;document.getElementById('modal').innerHTML=''}
+function ask(text,okLabel,cb){window._cb=cb;modal(`<p style="font-size:17px">${esc(text)}</p><div class="row"><button class="sec" style="flex:1" onclick="closeModal()">Anuluj</button><button style="flex:1" onclick="closeModal();window._cb()">${esc(okLabel)}</button></div>`)}
+function toast(t){const d=document.createElement('div');d.textContent=t;d.style.cssText='position:fixed;left:50%;transform:translateX(-50%);bottom:90px;background:#1f1d2b;color:#fff;padding:10px 16px;border-radius:12px;z-index:99;font-size:15px';document.body.appendChild(d);setTimeout(()=>d.remove(),2200)}
+
+function openPicker(cb){
+ pickCb=cb;PK={q:'',g:''};
+ modal(`<div class="row sp"><h2 style="margin:0">Wybierz ćwiczenie</h2><button class="sec sm" onclick="closeModal()">Zamknij</button></div>
+ <input style="margin-top:10px" placeholder="Szukaj…" oninput="PK.q=this.value;document.getElementById('pl').innerHTML=listHTML(PK,'pick')">
+ <div id="pc">${chipsHTML(PK,'pkG')}</div><div id="pl">${listHTML(PK,'pick')}</div>
+ <button class="sec full" onclick="openCustom(true)">+ Dodaj własne ćwiczenie</button>`);
+}
+function pkG(g){PK.g=g;document.getElementById('pc').innerHTML=chipsHTML(PK,'pkG');document.getElementById('pl').innerHTML=listHTML(PK,'pick')}
+function pickEx(id){const cb=pickCb;closeModal();if(cb)cb(id)}
+
+function bestKg(id){let b=0;S.logs.forEach(l=>l.entries.forEach(e=>{if(e.ex===id)e.sets.forEach(s=>{if(s.kg>b)b=s.kg})}));return b}
+function openDetail(id){
+ const ex=getEx(id);if(!ex)return;const b=bestKg(id);
+ const pic=ex.img?`<div class="big"><img src="${ex.img}" alt=""></div>`:`<div class="big" id="anim">${figSVG(ex,0)}</div><div class="row" style="margin-top:8px"><button class="sec sm" style="flex:1" onclick="animMode(0)">Start</button><button class="sec sm" style="flex:1" onclick="animMode('play')">▶ Animacja</button><button class="sec sm" style="flex:1" onclick="animMode(1)">Koniec</button></div>`;
+ modal(`<div class="row sp"><h2 style="margin:0">${esc(ex.name)}</h2><button class="sec sm" onclick="closeModal()">Zamknij</button></div>
+ <div class="mut" style="margin:4px 0 10px">${esc(ex.group)}${ex.eq?' · '+esc(ex.eq):''}${b?' · Twój rekord: '+b+' kg':''}</div>${pic}
+ <h2>Jak wykonać</h2><ol>${(ex.steps||[]).map(s=>`<li>${esc(s)}</li>`).join('')}</ol>
+ ${ex.tips?`<div class="card" style="background:var(--acc2)"><b>Wskazówka:</b> ${esc(ex.tips)}</div>`:''}
+ ${ex.custom?`<button class="bad full" onclick="delCustom('${ex.id}')">Usuń to ćwiczenie</button>`:''}`);
+ if(!ex.img){window._ex=ex;animMode('play')}
+}
+let ph=0,mode='play';
+function animMode(m){
+ clearInterval(animT);animT=null;mode=m;const el=document.getElementById('anim');if(!el)return;
+ if(m==='play'){ph=0;animT=setInterval(()=>{ph+=0.045;const t=(1-Math.cos(ph))/2;el.innerHTML=figSVG(window._ex,t)},40)}
+ else el.innerHTML=figSVG(window._ex,m);
+}
+function delCustom(id){ask('Usunąć to ćwiczenie? (zniknie też z planów)','Usuń',()=>{S.custom=S.custom.filter(e=>e.id!==id);S.plans.forEach(p=>p.items=p.items.filter(i=>i.ex!==id));save();render()})}
+
+/* --- Własne ćwiczenie --- */
+let newImg=null,fromPicker=false;
+function openCustom(fp){
+ newImg=null;fromPicker=!!fp;
+ modal(`<h2 style="margin-top:0">Własne ćwiczenie</h2>
+ <label class="lbl">Nazwa</label><input id="cn" placeholder="np. Przysiad bułgarski">
+ <label class="lbl">Partia mięśni</label><select id="cg">${GROUPS.map(g=>`<option>${g}</option>`).join('')}</select>
+ <label class="lbl">Opis wykonania (każda linia = jeden krok)</label><textarea id="cs" rows="4"></textarea>
+ <label class="lbl">Zdjęcie lub grafika (opcjonalnie)</label><input type="file" accept="image/*" onchange="readImg(this)"><div id="cp" style="margin-top:8px"></div>
+ <div class="row" style="margin-top:14px"><button class="sec" style="flex:1" onclick="closeModal()">Anuluj</button><button style="flex:1" onclick="saveCustom()">Zapisz</button></div>`);
+}
+function readImg(inp){
+ const f=inp.files[0];if(!f)return;const r=new FileReader();
+ r.onload=()=>{const im=new Image();im.onload=()=>{const m=520,sc=Math.min(1,m/Math.max(im.width,im.height));const c=document.createElement('canvas');c.width=im.width*sc;c.height=im.height*sc;c.getContext('2d').drawImage(im,0,0,c.width,c.height);newImg=c.toDataURL('image/jpeg',0.8);document.getElementById('cp').innerHTML=`<img src="${newImg}" style="max-width:100%;border-radius:10px">`};im.src=r.result};
+ r.readAsDataURL(f);
+}
+function saveCustom(){
+ const n=document.getElementById('cn').value.trim();if(!n){toast('Wpisz nazwę');return}
+ const ex={id:'c'+uid(),name:n,group:document.getElementById('cg').value,eq:'',custom:true,steps:document.getElementById('cs').value.split('\n').map(x=>x.trim()).filter(Boolean),tips:'',img:newImg};
+ S.custom.push(ex);save();
+ if(fromPicker&&pickCb){const cb=pickCb;closeModal();cb(ex.id)}else{closeModal();render()}
+}
+
+/* --- Historia --- */
+function vHist(){
+ let h='<h1>Historia</h1>';
+ if(!S.logs.length)return h+'<div class="card mut">Tu pojawią się zakończone treningi.</div>';
+ const week=Date.now()-7*864e5;const cnt=S.logs.filter(l=>l.date>week).length;
+ h+=`<div class="card"><b>${S.logs.length}</b> treningów łącznie · <b>${cnt}</b> w ostatnich 7 dniach</div>`;
+ S.logs.slice().reverse().forEach(l=>{
+  const vol=l.entries.reduce((a,e)=>a+e.sets.reduce((b,s)=>b+s.kg*s.reps,0),0);
+  const d=new Date(l.date).toLocaleDateString('pl-PL',{weekday:'long',day:'numeric',month:'long'});
+  h+=`<details class="card"><summary><div class="row sp"><div><h3>${esc(l.name)}</h3><div class="mut">${d} · ${l.end?Math.round((l.end-l.date)/60000)+' min · ':''}${Math.round(vol)} kg objętości</div></div><span class="mut">▾</span></div></summary>
+  <div style="margin-top:10px">${l.entries.map(e=>`<div style="margin-bottom:8px"><b>${esc((getEx(e.ex)||{name:'(usunięte)'}).name)}</b><div class="mut">${e.sets.map(s=>s.kg+' kg × '+s.reps).join(' &nbsp;|&nbsp; ')}</div></div>`).join('')}
+  <button class="bad sm" onclick="ask('Usunąć ten trening z historii?','Usuń',()=>{S.logs=S.logs.filter(x=>x.id!=='${l.id}');save();render()})">Usuń</button></div></details>`;
+ });
+ return h;
+}
+
+/* --- Ustawienia --- */
+function vSet(){
+ return `<h1>Ustawienia</h1>
+ <div class="card"><h3>Przerwa między seriami</h3><select style="margin-top:8px" onchange="S.rest=parseInt(this.value);save()">${[0,45,60,90,120,180].map(v=>`<option value="${v}" ${S.rest===v?'selected':''}>${v?v+' s':'wyłączona'}</option>`).join('')}</select></div>
+ <div class="card"><h3>Jak mieć apkę na ekranie telefonu</h3><p class="mut">iPhone (Safari): przycisk Udostępnij → „Dodaj do ekranu początkowego”.<br>Android (Chrome): menu ⋮ → „Dodaj do ekranu głównego” / „Zainstaluj aplikację”.</p></div>
+ <div class="card"><h3>Kopia zapasowa</h3><p class="mut">Dane są zapisane w tej przeglądarce na tym telefonie. Skopiuj kod poniżej i schowaj go (np. w notatkach), żeby nie stracić historii przy zmianie telefonu lub wyczyszczeniu przeglądarki.</p>
+ <textarea id="bk" rows="3" readonly>${esc(JSON.stringify({plans:S.plans,logs:S.logs,custom:S.custom,rest:S.rest}))}</textarea>
+ <div class="row" style="margin-top:8px"><button class="sec" onclick="copyBk()">Kopiuj kod</button></div>
+ <label class="lbl">Przywróć z kopii (wklej kod)</label><textarea id="rs" rows="3"></textarea>
+ <div class="row" style="margin-top:8px"><button class="sec" onclick="restoreBk()">Przywróć</button></div></div>
+ <div class="card"><button class="bad full" onclick="ask('Na pewno usunąć WSZYSTKIE dane (plany, historię, własne ćwiczenia)?','Usuń wszystko',()=>{S={plans:[],logs:[],custom:[],active:null,rest:90};save();render()})">Usuń wszystkie dane</button></div>`;
+}
+function copyBk(){const t=document.getElementById('bk');t.select();try{navigator.clipboard.writeText(t.value).then(()=>toast('Skopiowano'),()=>toast('Zaznaczone – skopiuj ręcznie'))}catch(e){toast('Zaznaczone – skopiuj ręcznie')}}
+function restoreBk(){
+ try{const d=JSON.parse(document.getElementById('rs').value);if(!d||!Array.isArray(d.logs)||!Array.isArray(d.plans))throw 0;
+  ask('Zastąpić obecne dane danymi z kopii?','Przywróć',()=>{S=Object.assign({plans:[],logs:[],custom:[],active:null,rest:90},d);save();render();toast('Przywrócono')})}
+ catch(e){toast('Nieprawidłowy kod kopii')}
+}
+/* ===== Offline (service worker) i podpowiedź instalacji ===== */
+if('serviceWorker' in navigator&&location.protocol.startsWith('http')){window.addEventListener('load',()=>{navigator.serviceWorker.register('sw.js').catch(()=>{})})}
+
+render();
+</script>
+</body>
+</html>
