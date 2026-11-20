@@ -53,6 +53,13 @@ ol{padding-left:20px;margin:8px 0}ol li{margin-bottom:6px}
 details summary{cursor:pointer;list-style:none}details summary::-webkit-details-marker{display:none}
 .lbl{font-size:13px;color:var(--mut);margin:10px 0 4px;display:block}
 .num{width:64px;text-align:center;padding:8px 4px}
+.sethead,.set{grid-template-columns:28px 1fr 1fr 44px!important;gap:6px!important}
+.st{display:flex;align-items:stretch;min-width:0}.st input{flex:1;min-width:0;width:100%;border-radius:0!important;padding:9px 0!important}
+.st button{flex:none;width:30px;padding:0;background:#ecebf3;color:var(--acc);font-size:18px;font-weight:700}
+.st button:first-child{border-radius:10px 0 0 10px}.st button:last-child{border-radius:0 10px 10px 0}
+.set.done .st button{background:#d3f0e2}
+.rest div{flex-wrap:wrap;gap:8px}.rest .rb{display:flex;gap:6px}
+.note{width:100%;margin-top:8px;font-size:15px}
 </style>
 </head>
 <body>
@@ -985,25 +992,41 @@ function vActive(){
   <button class="bad sm" onclick="rmItem(${ii})">✕</button></div>
   <div class="sethead"><span>Seria</span><span>kg</span><span>Powt.</span><span>✓</span></div>`;
   it.sets.forEach((s,si)=>{h+=`<div class="set ${s.done?'done':''}"><span class="n">${si+1}</span>
-   <input inputmode="decimal" placeholder="kg" value="${esc(s.kg)}" oninput="S.active.items[${ii}].sets[${si}].kg=this.value;save()">
-   <input inputmode="decimal" placeholder="powt." value="${esc(s.reps)}" oninput="S.active.items[${ii}].sets[${si}].reps=this.value;save()">
+   <div class="st"><button onclick="bump(${ii},${si},'kg',-2.5)">−</button><input inputmode="decimal" placeholder="kg" value="${esc(s.kg)}" oninput="S.active.items[${ii}].sets[${si}].kg=this.value;save()"><button onclick="bump(${ii},${si},'kg',2.5)">+</button></div>
+   <div class="st"><button onclick="bump(${ii},${si},'reps',-1)">−</button><input inputmode="decimal" placeholder="powt." value="${esc(s.reps)}" oninput="S.active.items[${ii}].sets[${si}].reps=this.value;save()"><button onclick="bump(${ii},${si},'reps',1)">+</button></div>
    <button class="chk" onclick="toggleSet(${ii},${si})">✓</button></div>`});
-  h+=`<div class="row"><button class="sec sm" onclick="addSet(${ii})">+ seria</button>${it.sets.length>1?`<button class="sec sm" onclick="S.active.items[${ii}].sets.pop();save();render()">− seria</button>`:''}</div></div>`;
+  const ln=lastNoteFor(it.ex);
+  h+=`<div class="row"><button class="sec sm" onclick="addSet(${ii})">+ seria</button><button class="sec sm" onclick="S.active.items[${ii}].nb=!S.active.items[${ii}].nb;render()">📝 ${it.note?'Notatka ✓':'Notatka'}</button>${it.sets.length>1?`<button class="sec sm" onclick="S.active.items[${ii}].sets.pop();save();render()">− seria</button>`:''}</div>${(it.nb||it.note)?`<textarea class="note" rows="2" placeholder="Notatka (np. ustawienie maszyny, samopoczucie)" oninput="S.active.items[${ii}].note=this.value;save()">${esc(it.note||'')}</textarea>`:''}${ln&&!it.note?`<div class="mut" style="margin-top:6px">Poprzednio: ${esc(ln)}</div>`:''}</div>`;
  });
  h+='<button class="sec full" onclick="openPicker(id=>{S.active.items.push(mkItem(id,3,\'10\'));save();render()})">+ Dodaj ćwiczenie</button>';
  return h;
 }
+function bump(ii,si,k,d){const s=S.active.items[ii].sets[si];let v=Math.max(0,Math.round((num(s[k])+d)*100)/100);s[k]=String(v).replace('.',',').replace(/,0+$/,'');save();render()}
+function lastNoteFor(exId){for(let i=S.logs.length-1;i>=0;i--){const e=S.logs[i].entries.find(x=>x.ex===exId);if(e&&e.note)return e.note}return ''}
+function startFromLog(id){
+ const l=S.logs.find(x=>x.id===id);if(!l)return;
+ if(S.active){ask('Masz już trening w toku. Zacząć nowy i porzucić tamten?','Zacznij nowy',()=>{S.active=null;startFromLog(id)});return}
+ S.active={name:l.name,start:Date.now(),items:l.entries.map(e=>({ex:e.ex,note:'',sets:e.sets.map(s=>({kg:s.kg?String(s.kg).replace('.',','):'',reps:String(s.reps||''),done:false}))}))};
+ save();view='active';render();
+}
+function logToPlan(id){
+ const l=S.logs.find(x=>x.id===id);if(!l)return;
+ S.plans.push({id:uid(),name:l.name,items:l.entries.map(e=>({ex:e.ex,sets:e.sets.length,reps:String(e.sets[e.sets.length-1].reps||'')}))});
+ save();toast('Dodano do „Moje treningi”');
+}
+function restAdd(n){restEnd=Math.max(restEnd,Date.now())+n*1000;restTotalAdd+=n;tick()}
+let restTotalAdd=0;
 function addSet(ii){const s=S.active.items[ii].sets;const l=s[s.length-1];s.push({kg:l?l.kg:'',reps:l?l.reps:'',done:false});save();render()}
 function rmItem(ii){ask('Usunąć to ćwiczenie z treningu?','Usuń',()=>{S.active.items.splice(ii,1);save();render()})}
 let restEnd=0;
 function toggleSet(ii,si){
  const s=S.active.items[ii].sets[si];s.done=!s.done;save();
- if(s.done&&S.rest>0){restEnd=Date.now()+S.rest*1000}else if(!s.done){restEnd=0}
+ if(s.done&&S.rest>0){restEnd=Date.now()+S.rest*1000;restTotalAdd=0}else if(!s.done){restEnd=0}
  render();
 }
 function finish(){
  const A=S.active;
- const entries=A.items.map(it=>({ex:it.ex,sets:it.sets.filter(s=>s.done).map(s=>({kg:num(s.kg),reps:num(s.reps)}))})).filter(e=>e.sets.length);
+ const entries=A.items.map(it=>({ex:it.ex,sets:it.sets.filter(s=>s.done).map(s=>({kg:num(s.kg),reps:num(s.reps)})),note:(it.note||'').trim()})).filter(e=>e.sets.length);
  if(!entries.length){ask('Nie zaznaczyłaś żadnej serii (✓). Zakończyć bez zapisywania?','Zakończ bez zapisu',()=>{S.active=null;restEnd=0;save();view=null;tab='home';render()});return}
  ask('Zakończyć i zapisać trening?','Zapisz',()=>{
   S.logs.push({id:uid(),date:A.start,end:Date.now(),name:A.name,entries});
@@ -1014,7 +1037,7 @@ function finish(){
 /* --- Odpoczynek / zegar --- */
 function renderRest(){
  const el=document.getElementById('rest');
- if(restEnd>Date.now()&&view==='active')el.innerHTML=`<div class="rest"><div><span>Odpoczynek</span><b id="rt"></b><button onclick="restEnd=0;renderRest()">Pomiń</button></div></div>`;
+ if(restEnd>Date.now()&&view==='active')el.innerHTML=`<div class="rest"><div><span>Odpoczynek</span><b id="rt"></b><div class="rb"><button onclick="restAdd(15)">+15 s</button><button onclick="restAdd(30)">+30 s</button><button onclick="restEnd=0;renderRest()">Pomiń</button></div></div></div>`;
  else el.innerHTML='';
  tick();
 }
@@ -1128,7 +1151,8 @@ function vHist(){
   const vol=l.entries.reduce((a,e)=>a+e.sets.reduce((b,s)=>b+s.kg*s.reps,0),0);
   const d=new Date(l.date).toLocaleDateString('pl-PL',{weekday:'long',day:'numeric',month:'long'});
   h+=`<details class="card"><summary><div class="row sp"><div><h3>${esc(l.name)}</h3><div class="mut">${d} · ${l.end?Math.round((l.end-l.date)/60000)+' min · ':''}${Math.round(vol)} kg objętości</div></div><span class="mut">▾</span></div></summary>
-  <div style="margin-top:10px">${l.entries.map(e=>`<div style="margin-bottom:8px"><b>${esc((getEx(e.ex)||{name:'(usunięte)'}).name)}</b><div class="mut">${e.sets.map(s=>s.kg+' kg × '+s.reps).join(' &nbsp;|&nbsp; ')}</div></div>`).join('')}
+  <div style="margin-top:10px">${l.entries.map(e=>`<div style="margin-bottom:8px"><b>${esc((getEx(e.ex)||{name:'(usunięte)'}).name)}</b><div class="mut">${e.sets.map(s=>s.kg+' kg × '+s.reps).join(' &nbsp;|&nbsp; ')}</div>${e.note?`<div class="mut">📝 ${esc(e.note)}</div>`:''}</div>`).join('')}
+  <div class="row" style="margin-bottom:8px"><button class="sm" onclick="startFromLog('${l.id}')">Powtórz ten trening</button><button class="sec sm" onclick="logToPlan('${l.id}')">Zapisz jako plan</button></div>
   <button class="bad sm" onclick="ask('Usunąć ten trening z historii?','Usuń',()=>{S.logs=S.logs.filter(x=>x.id!=='${l.id}');save();render()})">Usuń</button></div></details>`;
  });
  return h;

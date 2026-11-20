@@ -1,6 +1,6 @@
 // Service worker: zapisuje pliki aplikacji, żeby działała bez internetu.
 // Przy zmianie plików podnieś numer wersji, wtedy telefon pobierze nowe.
-const VER = 'trening-v12';
+const VER = 'trening-v13';
 const FILES = ['./', './index.html', './manifest.webmanifest',
   './icon-192.png', './icon-512.png', './apple-touch-icon.png'];
 self.addEventListener('install', e => {
