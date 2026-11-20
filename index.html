@@ -128,14 +128,14 @@ function solve(ex,P){
   else{j.K2=vadd(j.K,[-4,-1]);j.A2=vadd(j.A,[-4,-1])}}
  // sprzęt na plecach / biodrach
  const back=[-Math.cos(rad(P.tr)),-Math.sin(rad(P.tr))];
- if(ex.att==='back')j.bar=vadd(vadd(j.S,vmul(back,6)),vmul(D,-2));
+ if(ex.att==='back')j.bar=vadd(vadd(j.S,vmul(back,7)),vmul(D,1.5));
  else if(ex.att==='hip')j.bar=vadd(j.hip,[0,-7]);
  else if(ex.att==='front'){const f=[-D[1],D[0]];j.bar=vadd(vadd(j.S,vmul(f,3)),vmul(D,7))}
  else if(ex.att==='chest'){const f=[-D[1],D[0]];j.bar=vadd(vadd(j.S,vmul(f,12)),vmul(D,-7))}
  // ręce
  let T=null;
  if(P.hb&&j.bar)T=vadd(j.bar,P.hb);else if(P.h)T=P.h;else if(P.hd)T=vadd(j.H,P.hd);
- if(T){const r=two(j.S,T,LU,LF,as);j.E=r.J;j.W=r.E}
+ if(T){const r=two(j.S,T,LU,LF,(ex.att==='back'&&P.hb)?-as:as);j.E=r.J;j.W=r.E}
  else{j.E=vadd(j.S,vmul(dDn(P.ar[0]),LU));j.W=vadd(j.E,vmul(dDn(P.ar[1]),LF))}
  if(P.farh){const r=two(j.S,P.farh,LU,LF,as);j.E2=r.J;j.W2=r.E}else{j.E2=vadd(j.E,[-4,-1.5]);j.W2=vadd(j.W,[-4,-1.5])}
  j.toe=P.toe;j.toe2=P.toe2;
@@ -150,6 +150,7 @@ function footSeg(A,K,toe,face){
  return [A,[A[0]+p[0]*11,A[1]+p[1]*11]];
 }
 /* ===== Model postaci (v8): smukła sylwetka ~7,5 głowy, buty, detale ubioru ===== */
+C.cap='#8f86e0';C.capV='#6a60c2';
 Object.assign(C,{skin:'#f1c5a3',skinF:'#d9ab8c',shirt:'#6c5ce7',shirtF:'#4e43b0',short:'#3a3763',shortF:'#2a2850',belt:'#5a559c',shoe:'#34305a',shoeF:'#26234a',sole:'#f7f6fd',soleF:'#cfcbea',lace:'#ffffff',hair:'#3d3560',hairF:'#2c2750'});
 const P2=p=>r1(p[0])+','+r1(p[1]);
 const LIGHT=[-0.45,-0.89];
@@ -215,7 +216,6 @@ function headShape(Hc,nd,fl){
  return `<g transform="rotate(${r1(ang)} ${r1(x)} ${r1(y)}) translate(${r1(x)} ${r1(y)}) scale(${f} 1) translate(${-r1(x)} ${-r1(y)})"><ellipse cx="${r1(x)}" cy="${r1(y)}" rx="6.7" ry="8.1" fill="${C.skin}"/>`
   +`<path d="M${r1(x+6.5)} ${r1(y-2.2)} C${r1(x+7)} ${r1(y-8.6)} ${r1(x-1)} ${r1(y-10)} ${r1(x-5.6)} ${r1(y-6.6)} C${r1(x-8)} ${r1(y-3.8)} ${r1(x-7.6)} ${r1(y+1)} ${r1(x-6)} ${r1(y+4.2)} C${r1(x-3.8)} ${r1(y+1)} ${r1(x-1)} ${r1(y-3)} ${r1(x+3)} ${r1(y-4.4)} C${r1(x+4.8)} ${r1(y-4.8)} ${r1(x+6)} ${r1(y-4.2)} ${r1(x+6.5)} ${r1(y-2.2)}Z" fill="${C.hair}"/>`
   +`<ellipse cx="${r1(x-0.6)}" cy="${r1(y+1)}" rx="1.5" ry="2.1" fill="${C.skinF}"/>`
-  +`<path d="M${r1(x+6.4)} ${r1(y+.2)} q2.2 1.6 .2 3.2" fill="${C.skin}" stroke="${C.skin}" stroke-width="1.3" stroke-linejoin="round"/>`
   +`</g>`;
 }
 /* tułów (profil): smukła sylwetka; koszulka z kołnierzem, pasek szortów */
@@ -290,8 +290,7 @@ function figFront(ex,u,gd){
   +ci([hx-6.8,hyc+1.2],1.7,C.skinF)+ci([hx+6.8,hyc+1.2],1.7,C.skinF)
   +`<ellipse cx="${hx}" cy="${hyc}" rx="6.8" ry="8.2" fill="${C.skin}"/>`
   +`<path d="M${hx-7.2} ${r1(hyc-1)} C${hx-8} ${r1(hyc-10.4)} ${hx+8} ${r1(hyc-10.4)} ${hx+7.2} ${r1(hyc-1)} C${hx+5.6} ${r1(hyc-5.4)} ${hx-5.6} ${r1(hyc-5.4)} ${hx-7.2} ${r1(hyc-1)}Z" fill="${C.hair}"/>`
-  +`<ellipse cx="${hx-2.4}" cy="${r1(hyc+0.6)}" rx=".85" ry="1" fill="${C.hair}"/><ellipse cx="${hx+2.4}" cy="${r1(hyc+0.6)}" rx=".85" ry="1" fill="${C.hair}"/>`
-  +`<path d="M${hx-1.9} ${r1(hyc+4.8)} Q${hx} ${r1(hyc+6.1)} ${hx+1.9} ${r1(hyc+4.8)}" fill="none" stroke="${C.skinF}" stroke-width="1" stroke-linecap="round"/>`;
+ ;
  s+=shoeFront(lL.a,-1)+shoeFront(lR.a,1);
  if(ex.draw==='db')s+=plate(aL.w,6.5)+plate(aR.w,6.5);
  return s+'</svg>';
