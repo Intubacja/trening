@@ -109,16 +109,20 @@ function lerpPose(A,B,u){
  return o;
 }
 function poseAt(ex,u){
+ if(ex.gen)return ex.gen(u,ex);
  if(ex.m){return u<0.5?lerpPose(ex.a,ex.m,u*2):lerpPose(ex.m,ex.b,(u-0.5)*2)}
  return lerpPose(ex.a,ex.b,u);
 }
+
+const frameAt=(ex,u)=>poseAt(ex,u);
 /* rozwiązanie szkieletu dla pozy */
 function solve(ex,P){
  const j={},D=dUp(P.tr),ls=ex.ls||[-1,-1],as=ex.as||1;
  j.hip=P.hip;j.S=vadd(P.hip,vmul(D,LK));
  j.H=vadd(j.S,vmul(dUp(P.tr*(ex.neck!==undefined?ex.neck:0.6)),LN));
  // nogi
- if(P.lg){j.K=vadd(P.hip,vmul(dDn(P.lg[0]),LT));j.A=vadd(j.K,vmul(dDn(P.lg[1]),LS));j.K2=vadd(j.K,[-3,-1]);j.A2=vadd(j.A,[-3,-1])}
+ if(P.lg){j.K=vadd(P.hip,vmul(dDn(P.lg[0]),LT));j.A=vadd(j.K,vmul(dDn(P.lg[1]),LS));
+  if(P.ank2){const r2=two(P.hip,P.ank2,LT,LS,ls[1]);j.K2=r2.J;j.A2=P.ank2}else{j.K2=vadd(j.K,[-3,-1]);j.A2=vadd(j.A,[-3,-1])}}
  else{const r=two(P.hip,P.ank,LT,LS,ls[0]);j.K=r.J;j.A=P.ank;
   if(P.ank2){const r2=two(P.hip,P.ank2,LT,LS,ls[1]);j.K2=r2.J;j.A2=P.ank2}
   else{j.K2=vadd(j.K,[-4,-1]);j.A2=vadd(j.A,[-4,-1])}}
@@ -126,6 +130,8 @@ function solve(ex,P){
  const back=[-Math.cos(rad(P.tr)),-Math.sin(rad(P.tr))];
  if(ex.att==='back')j.bar=vadd(vadd(j.S,vmul(back,6)),vmul(D,-2));
  else if(ex.att==='hip')j.bar=vadd(j.hip,[0,-7]);
+ else if(ex.att==='front'){const f=[-D[1],D[0]];j.bar=vadd(vadd(j.S,vmul(f,3)),vmul(D,7))}
+ else if(ex.att==='chest'){const f=[-D[1],D[0]];j.bar=vadd(vadd(j.S,vmul(f,12)),vmul(D,-7))}
  // ręce
  let T=null;
  if(P.hb&&j.bar)T=vadd(j.bar,P.hb);else if(P.h)T=P.h;else if(P.hd)T=vadd(j.H,P.hd);
@@ -138,84 +144,180 @@ function solve(ex,P){
 }
 function footSeg(A,K,toe,face){
  if(toe)return [A,toe];
- if(A[1]>=136)return [[A[0]-2,A[1]+2.5],[A[0]+14,A[1]+3.5]];
+ if(A[1]>=136)return [[A[0],A[1]],[A[0]+16,A[1]]];
  const sx=A[0]-K[0],sy=A[1]-K[1],L=Math.hypot(sx,sy)||1,s=[sx/L,sy/L];
  const p1=[-s[1],s[0]],p2=[s[1],-s[0]],p=p1[0]>p2[0]?p1:p2;
  return [A,[A[0]+p[0]*11,A[1]+p[1]*11]];
 }
+/* ===== Model postaci (v8): smukła sylwetka ~7,5 głowy, buty, detale ubioru ===== */
+Object.assign(C,{skin:'#f1c5a3',skinF:'#d9ab8c',shirt:'#6c5ce7',shirtF:'#4e43b0',short:'#3a3763',shortF:'#2a2850',belt:'#5a559c',shoe:'#34305a',shoeF:'#26234a',sole:'#f7f6fd',soleF:'#cfcbea',lace:'#ffffff',hair:'#3d3560',hairF:'#2c2750'});
+const P2=p=>r1(p[0])+','+r1(p[1]);
+const LIGHT=[-0.45,-0.89];
+const unit=v=>{const l=Math.hypot(v[0],v[1])||1;return [v[0]/l,v[1]/l]};
+const loc=(O,u,v,a,b)=>[O[0]+u[0]*a+v[0]*b,O[1]+u[1]*a+v[1]*b];
+function tcap(p,q,ra,rb,c,sh){
+ const dx=q[0]-p[0],dy=q[1]-p[1],L=Math.hypot(dx,dy)||1;let nx=-dy/L,ny=dx/L;
+ let s=`<polygon points="${P2([p[0]+nx*ra,p[1]+ny*ra])} ${P2([q[0]+nx*rb,q[1]+ny*rb])} ${P2([q[0]-nx*rb,q[1]-ny*rb])} ${P2([p[0]-nx*ra,p[1]-ny*ra])}" fill="${c}"/>`+ci(p,ra,c)+ci(q,rb,c);
+ if(sh!==false){
+  if(nx*LIGHT[0]+ny*LIGHT[1]<0){nx=-nx;ny=-ny}
+  const sa=ra*.34,sb=rb*.34,o1=ra*.42,o2=rb*.42;
+  s+=`<line x1="${r1(p[0]+nx*o1)}" y1="${r1(p[1]+ny*o1)}" x2="${r1(q[0]+nx*o2)}" y2="${r1(q[1]+ny*o2)}" stroke="#fff" stroke-opacity=".10" stroke-width="${r1(sa+sb)}" stroke-linecap="round"/>`;
+ }
+ return s;
+}
+function smooth(pts,c,extra){
+ const n=pts.length;let d=`M${P2(pts[0])}`;
+ for(let i=0;i<n;i++){const p0=pts[(i-1+n)%n],p1=pts[i],p2=pts[(i+1)%n],p3=pts[(i+2)%n];
+  d+=` C${P2([p1[0]+(p2[0]-p0[0])/6,p1[1]+(p2[1]-p0[1])/6])} ${P2([p2[0]-(p3[0]-p1[0])/6,p2[1]-(p3[1]-p1[1])/6])} ${P2(p2)}`}
+ return `<path d="${d}Z" fill="${c}"${extra||''}/>`;
+}
+const along=(p,q,f,o)=>{const dx=q[0]-p[0],dy=q[1]-p[1],L=Math.hypot(dx,dy)||1;return [p[0]+dx*f-dy/L*o,p[1]+dy*f+dx/L*o]};
+function legShape(hip,K,A,far){
+ const sk=far?C.skinF:C.skin,sh=far?C.shortF:C.short;
+ const e=along(hip,K,.56,0);
+ return tcap(hip,K,7.3,4.9,sk,!far)+tcap(K,A,4.7,2.9,sk,!far)+tcap(hip,e,7.7,6.5,sh,!far)
+  +ln(along(hip,K,.56,-5.8),along(hip,K,.56,5.8),1.2,far?C.shortF:C.belt);
+}
+function armShape(S,E,W,far){
+ const sk=far?C.skinF:C.skin,sl=far?C.shirtF:C.shirt;
+ const e=along(S,E,.36,0);
+ return tcap(S,E,4.0,3.3,sk,!far)+tcap(E,W,3.3,2.4,sk,!far)+tcap(S,e,4.6,4.2,sl,!far);
+}
+function handShape(E,W,far){
+ const d=unit([W[0]-E[0],W[1]-E[1]]),n=[-d[1],d[0]],c=far?C.skinF:C.skin;
+ const m=[W[0]+d[0]*2,W[1]+d[1]*2];
+ const ang=Math.atan2(d[1],d[0])*180/Math.PI;
+ return `<ellipse cx="${r1(m[0])}" cy="${r1(m[1])}" rx="3.7" ry="2.9" fill="${c}" transform="rotate(${r1(ang)} ${r1(m[0])} ${r1(m[1])})"/>`+ci([W[0]+d[0]*1+n[0]*2.3,W[1]+d[1]*1+n[1]*2.3],1.3,c);
+}
+/* układ lokalny stopy: u = w stronę palców, v = strona grzbietowa (cholewka) */
+function footFrame(A,K,toe,fl){
+ if(toe){const u=unit([toe[0]-A[0],toe[1]-A[1]]);return {u,v:[u[1],-u[0]]}}
+ if(A[1]>=136)return {u:[1,0],v:[0,-1]};
+ const s=unit([A[0]-K[0],A[1]-K[1]]),f=fl||1;
+ return {u:unit([f*s[1],-f*s[0]]),v:[-s[0],-s[1]]};
+}
+function shoeShape(A,K,toe,far,fl){
+ const {u,v}=footFrame(A,K,toe,fl);
+ const O=A,Pt=(a,b)=>loc(O,u,v,a,b);
+ const up=far?C.shoeF:C.shoe,so=far?C.soleF:C.sole;
+ const upper=[[-5.2,-3],[-5.8,0.5],[-5,3.8],[-1.5,5.3],[2,4.4],[6.4,2.5],[11.6,-.4],[16,-2.2],[17,-3.8],[16.6,-5],[-4.8,-5]];
+ let s=`<polygon points="${upper.map(p=>P2(Pt(p[0],p[1]))).join(' ')}" fill="${up}" stroke="${up}" stroke-width="1.2" stroke-linejoin="round"/>`;
+ s+=`<polygon points="${[[-5.7,-2.8],[-5.7,-5.2],[17.3,-5.2],[17.5,-3.6],[15.8,-2.6]].map(p=>P2(Pt(p[0],p[1]))).join(' ')}" fill="${so}" stroke="${so}" stroke-width="1" stroke-linejoin="round"/>`;
+ if(!far){
+  s+=ln(Pt(2.2,-.8),Pt(10.6,-2),1.2,'#8f86e0');
+  s+=ln(Pt(4.6,3.2),Pt(6.2,1.5),1,C.lace)+ln(Pt(7.4,2.3),Pt(9,.6),1,C.lace);
+  s+=ln(Pt(-3.6,3.5),Pt(-1,4.7),1.1,'#8f86e0');
+ }
+ return s;
+}
+function headShape(Hc,nd,fl){
+ const ang=Math.atan2(nd[1],nd[0])*180/Math.PI+90,x=Hc[0],y=Hc[1],f=fl||1;
+ return `<g transform="rotate(${r1(ang)} ${r1(x)} ${r1(y)}) translate(${r1(x)} ${r1(y)}) scale(${f} 1) translate(${-r1(x)} ${-r1(y)})"><ellipse cx="${r1(x)}" cy="${r1(y)}" rx="6.7" ry="8.1" fill="${C.skin}"/>`
+  +`<path d="M${r1(x+6.5)} ${r1(y-2.2)} C${r1(x+7)} ${r1(y-8.6)} ${r1(x-1)} ${r1(y-10)} ${r1(x-5.6)} ${r1(y-6.6)} C${r1(x-8)} ${r1(y-3.8)} ${r1(x-7.6)} ${r1(y+1)} ${r1(x-6)} ${r1(y+4.2)} C${r1(x-3.8)} ${r1(y+1)} ${r1(x-1)} ${r1(y-3)} ${r1(x+3)} ${r1(y-4.4)} C${r1(x+4.8)} ${r1(y-4.8)} ${r1(x+6)} ${r1(y-4.2)} ${r1(x+6.5)} ${r1(y-2.2)}Z" fill="${C.hair}"/>`
+  +`<ellipse cx="${r1(x-0.6)}" cy="${r1(y+1)}" rx="1.5" ry="2.1" fill="${C.skinF}"/>`
+  +`<path d="M${r1(x+6.4)} ${r1(y+.2)} q2.2 1.6 .2 3.2" fill="${C.skin}" stroke="${C.skin}" stroke-width="1.3" stroke-linejoin="round"/>`
+  +`</g>`;
+}
+/* tułów (profil): smukła sylwetka; koszulka z kołnierzem, pasek szortów */
+function torsoShape(hip,S,fwd,far){
+ const prof=[[-.1,4.6,-6.6],[.03,7,-8.2],[.28,6,-6.6],[.55,6.6,-6.2],[.8,8,-6.8],[1,5.4,-5.4],[1.1,1.8,-3]];
+ const F=[],B=[];
+ for(const q of prof){const b=along(hip,S,q[0],0);F.push([b[0]+fwd[0]*q[1],b[1]+fwd[1]*q[1]]);B.push([b[0]+fwd[0]*q[2],b[1]+fwd[1]*q[2]])}
+ const c=far?C.shirtF:C.shirt;
+ let s=smooth(F.concat(B.reverse()),c);
+ const mid=along(hip,S,.52,0),ang=Math.atan2(S[1]-hip[1],S[0]-hip[0])*180/Math.PI+90;
+ s+=`<ellipse cx="${r1(mid[0]+fwd[0]*2)}" cy="${r1(mid[1]+fwd[1]*2)}" rx="3" ry="12" fill="#fff" opacity=".10" transform="rotate(${r1(ang)} ${r1(mid[0]+fwd[0]*2)} ${r1(mid[1]+fwd[1]*2)})"/>`;
+ const sh=far?C.shortF:C.short;
+ const H1=along(hip,S,-.02,0),H2=along(hip,S,.15,0);
+ s+=smooth([[H1[0]+fwd[0]*6.4,H1[1]+fwd[1]*6.4],[H2[0]+fwd[0]*6.4,H2[1]+fwd[1]*6.4],[H2[0]-fwd[0]*7,H2[1]-fwd[1]*7],[H1[0]-fwd[0]*8.2,H1[1]-fwd[1]*8.2]],sh);
+ s+=ln(along(hip,S,.15,-7),along(hip,S,.15,6.6),1.5,far?C.shortF:C.belt);
+ return s;
+}
 /* ---- rysowanie: widok z boku ---- */
 function figSide(ex,u,gd){
- const P=poseAt(ex,u),j=solve(ex,P),hl=new Set(ex.hl||[]);const col=(k,d)=>hl.has(k)?C.hl:d;
- let s=`<svg viewBox="0 -12 240 172" class="fig" xmlns="http://www.w3.org/2000/svg"><line x1="8" y1="${FLOOR}" x2="232" y2="${FLOOR}" stroke="${C.floor}" stroke-width="3" stroke-linecap="round"/>${ex.deco||''}`;
+ const P=frameAt(ex,u),j=solve(ex,P),fl=ex.fl||1;
+ const D=dUp(P.tr),fwd=[-D[1]*fl,D[0]*fl];
+ let s=`<svg viewBox="0 -12 240 172" class="fig" xmlns="http://www.w3.org/2000/svg"><line x1="8" y1="${FLOOR}" x2="232" y2="${FLOOR}" stroke="${C.floor}" stroke-width="3" stroke-linecap="round"/><ellipse cx="${r1((j.A[0]+j.A2[0])/2+5)}" cy="${FLOOR+1}" rx="26" ry="2.6" fill="#4b4676" opacity=".10"/>${ex.deco||''}`;
  if(gd){
-  if(ex.mf){const x=solve(ex,poseAt(ex,0)).bar[0];s+=`<line x1="${x}" y1="-8" x2="${x}" y2="${FLOOR}" stroke="${C.guide}" stroke-width="1.2" stroke-dasharray="3 4" opacity=".7"/>`}
-  if(ex.draw||ex.cable){let pts='';for(let i=0;i<=24;i++){const q=solve(ex,poseAt(ex,i/24)).bar;pts+=r1(q[0])+','+r1(q[1])+' '}
+  if(ex.gx!==undefined)s+=`<line x1="${ex.gx}" y1="-8" x2="${ex.gx}" y2="${FLOOR}" stroke="${C.guide}" stroke-width="1.2" stroke-dasharray="3 4" opacity=".7"/>`;
+  if(ex.draw||ex.cable){let pts='';for(let i=0;i<=24;i++){const q=solve(ex,frameAt(ex,i/24)).bar;pts+=r1(q[0])+','+r1(q[1])+' '}
    s+=`<polyline points="${pts}" fill="none" stroke="${C.guide}" stroke-width="1.4" stroke-dasharray="3 3" opacity=".75"/>`}
  }
- s+=ln(j.S,j.E2,WD.uarm-1,C.far)+ln(j.E2,j.W2,WD.farm-1,C.far);
- s+=ln(j.hip,j.K2,WD.thigh-1,C.far)+ln(j.K2,j.A2,WD.shin-1,C.far);
- const m=mid(j.S,j.hip);
- s+=ln(j.S,m,WD.torso,col('torsoU',C.body))+ln(m,j.hip,WD.torso,col('torsoL',C.body));
- s+=ln(j.hip,j.K,WD.thigh,col('thigh',C.body))+ln(j.K,j.A,WD.shin,col('shin',C.body));
- if(hl.has('glute'))s+=ci(j.hip,8,C.hl);
- s+=ln(j.S,j.E,WD.uarm,col('uarm',C.body))+ln(j.E,j.W,WD.farm,col('farm',C.body));
- if(hl.has('shoulder'))s+=ci(j.S,7.5,C.hl);
- s+=ln(j.S,j.H,5,C.skin)+ci(j.H,8.5,C.skin)+ci(j.W,4,C.skin);
- const f1=footSeg(j.A,j.K,j.toe),f2=footSeg(j.A2,j.K2,j.toe2);
- s+=ln(f2[0],f2[1],4,C.far)+ln(f1[0],f1[1],5,C.body);
+ s+=armShape(j.S,j.E2,j.W2,true)+handShape(j.E2,j.W2,true)+legShape(j.hip,j.K2,j.A2,true)+shoeShape(j.A2,j.K2,j.toe2,true,fl);
+ s+=torsoShape(j.hip,j.S,fwd);
+ s+=legShape(j.hip,j.K,j.A)+shoeShape(j.A,j.K,j.toe,false,fl);
+ const nd=[j.H[0]-j.S[0],j.H[1]-j.S[1]];
+ s+=tcap(j.S,j.H,3.4,3.1,C.skin,false)+headShape(j.H,nd,fl);
+ s+=`<path d="M${P2(along(j.S,j.H,.1,3.1))} Q${P2(along(j.S,j.H,.0,0))} ${P2(along(j.S,j.H,.1,-3.1))}" fill="none" stroke="#8f86e0" stroke-width="1.5" stroke-linecap="round"/>`;
+ s+=armShape(j.S,j.E,j.W)+handShape(j.E,j.W);
  const pt=j.bar;
  if(ex.cable){const cp=ex.cableTo==='ank'?j.A:j.W;s+=ln(ex.cable,cp,1.6,C.cable)+ci(ex.cable,4.5,C.metal)+ci(cp,2.5,C.metal)}
  if(ex.plate){const dx=j.A[0]-j.K[0],dy=j.A[1]-j.K[1],L=Math.hypot(dx,dy)||1,nx=-dy/L,ny=dx/L;
   s+=ln([j.A[0]+nx*16+dx/L*5,j.A[1]+ny*16+dy/L*5],[j.A[0]-nx*16+dx/L*5,j.A[1]-ny*16+dy/L*5],6,C.metal)}
- if(ex.draw==='bar')s+=ln([pt[0]-15,pt[1]],[pt[0]+15,pt[1]],2.5,C.metal)+plate(pt,12);
+ if(ex.draw==='bar')s+=ln([pt[0]-17,pt[1]],[pt[0]+17,pt[1]],2.5,C.metal)+plate(pt,14);
  else if(ex.draw==='db')s+=plate(pt,6.5);
  else if(ex.draw==='kb')s+=`<path d="M${r1(pt[0]-5)} ${r1(pt[1]-5)} q5 -9 10 0" fill="none" stroke="${C.plate}" stroke-width="3"/>`+ci([pt[0],pt[1]+1],7.5,C.plate);
  return s+'</svg>';
 }
-/* ---- widok z przodu (parametry: ab=odwiedzenie ramienia, el=zgięcie łokcia, sr=uniesienie barków, lk=odwiedzenie nóg, seat) ---- */
+/* ---- widok z przodu ---- */
+function shoeFront(a,sg){
+ const x=a[0]+sg*1.6,y=a[1]+3.6;
+ return `<ellipse cx="${r1(x)}" cy="${r1(y+2)}" rx="6" ry="3.2" fill="${C.sole}"/><path d="M${r1(x-5.2)} ${r1(y+1.6)} Q${r1(x-5.6)} ${r1(y-5.6)} ${r1(x-1.6)} ${r1(y-6.2)} L${r1(x+1.6)} ${r1(y-6.2)} Q${r1(x+5.6)} ${r1(y-5.6)} ${r1(x+5.2)} ${r1(y+1.6)} Z" fill="${C.shoe}"/>`
+  +ln([x-2,y-1.4],[x+2,y-1.4],1,C.lace)+ln([x-2.4,y+.4],[x+2.4,y+.4],1,C.lace);
+}
 function figFront(ex,u,gd){
- const P=poseAt(ex,u),hl=new Set(ex.hl||[]);const col=(k,d)=>hl.has(k)?C.hl:d;
- const seat=!!P.seat,hy=seat?108:81,sy=46-(P.sr||0),sl=[104,sy+2],sr_=[136,sy+2];
+ const P=frameAt(ex,u);
+ const seat=!!P.seat,hy=seat?112:81,sy=hy-35-(P.sr||0),sl=[106,sy+3],sr_=[134,sy+3];
  const dir=(a,sg)=>[sg*Math.sin(rad(a)),Math.cos(rad(a))];
  const arm=(sh,sg)=>{const e=vadd(sh,vmul(dir(P.ab,sg),LU));const w=vadd(e,vmul(dir(P.ab+4,sg),LF*Math.cos(rad(P.el||0))));return {e,w}};
  const aL=arm(sl,-1),aR=arm(sr_,1);
- const leg=sg=>{const hp=[120+sg*8,hy];let k,a;
+ const leg=sg=>{const hp=[120+sg*6,hy];let k,a;
   if(seat){k=[hp[0]+sg*Math.sin(rad(P.lk))*LT,hy-1];a=[k[0]+sg*Math.sin(rad(P.lk))*14,k[1]+LS]}
   else{k=vadd(hp,vmul([sg*Math.sin(rad(P.lk)),Math.cos(rad(P.lk))],LT));a=vadd(k,vmul([sg*Math.sin(rad(P.lk)),Math.cos(rad(P.lk))],LS))}
   return {hp,k,a}};
  const lL=leg(-1),lR=leg(1);
- let s=`<svg viewBox="0 -12 240 172" class="fig" xmlns="http://www.w3.org/2000/svg"><line x1="8" y1="${FLOOR}" x2="232" y2="${FLOOR}" stroke="${C.floor}" stroke-width="3" stroke-linecap="round"/>${ex.deco||''}`;
- for(const l of [lL,lR])s+=ln(l.hp,l.k,WD.thigh+1,col('thigh',C.body))+ln(l.k,l.a,WD.shin+1,C.body);
- s+=ln([120,sy+4],[120,hy-2],24,col('torsoU',C.body))+ln(lL.hp,lR.hp,16,C.body)+ln(sl,sr_,14,col('torsoU',C.body));
- for(const [a,sh] of [[aL,sl],[aR,sr_]])s+=ln(sh,a.e,WD.uarm+1,col('uarm',C.body))+ln(a.e,a.w,WD.farm+1,C.body);
- if(hl.has('shoulder'))s+=ci(sl,7.5,C.hl)+ci(sr_,7.5,C.hl);
- if(hl.has('trap'))s+=ln([108,sy-4],[132,sy-4],11,C.hl);
- s+=ln([120,sy],[120,sy-11],5,C.skin)+ci([120,sy-18],8.5,C.skin)+ci(aL.w,4,C.skin)+ci(aR.w,4,C.skin);
- if(!seat)s+=ln(lL.a,[lL.a[0]-9,lL.a[1]],5,C.body)+ln(lR.a,[lR.a[0]+9,lR.a[1]],5,C.body);
- else s+=ln(lL.a,[lL.a[0]-7,lL.a[1]],5,C.body)+ln(lR.a,[lR.a[0]+7,lR.a[1]],5,C.body);
+ let s=`<svg viewBox="0 -12 240 172" class="fig" xmlns="http://www.w3.org/2000/svg"><line x1="8" y1="${FLOOR}" x2="232" y2="${FLOOR}" stroke="${C.floor}" stroke-width="3" stroke-linecap="round"/><ellipse cx="120" cy="${FLOOR+1}" rx="28" ry="2.6" fill="#4b4676" opacity=".10"/>${ex.deco||''}`;
+ for(const [l,sg] of [[lL,-1],[lR,1]]){const e=along(l.hp,l.k,.56,0);
+  s+=tcap(l.hp,l.k,6.6,4.8,C.skin)+tcap(l.k,l.a,4.7,3,C.skin)+tcap(l.hp,e,7,6.2,C.short)+(seat?ci(l.k,5.4,C.skin):'')}
+ s+=smooth([[120,sy-3.2],[sl[0]-2.5,sy+.6],[sl[0]-4.4,sy+4],[sl[0]-1.5,sy+16],[112,hy-16],[110.6,hy-6],[109,hy+3],[120,hy+5.5],[131,hy+3],[129.4,hy-6],[128,hy-16],[sr_[0]+1.5,sy+16],[sr_[0]+4.4,sy+4],[sr_[0]+2.5,sy+.6]],C.shirt);
+ s+=`<path d="M${P2([115.4,sy-2.2])} Q120 ${r1(sy+7)} ${P2([124.6,sy-2.2])}" fill="${C.skin}"/>`;
+ s+=smooth([[110,hy-6],[130,hy-6],[132,hy+4],[120,hy+7.5],[108,hy+4]],C.short);
+ s+=ln([110.4,hy-5.6],[129.6,hy-5.6],1.5,C.belt)+ln([120,hy-4],[120,hy+6.5],1,C.belt);
+ for(const [a,sh,sg] of [[aL,sl,-1],[aR,sr_,1]]){const e=along(sh,a.e,.3,0);
+  s+=tcap(sh,a.e,4.1,3.4,C.skin)+tcap(a.e,a.w,3.4,2.5,C.skin)+tcap(sh,e,4.5,4.2,C.shirt)+ci(a.w,3,C.skin)+ci([a.w[0]+sg*2.1,a.w[1]-0.4],1.3,C.skin)}
+ const hx=120,hyc=sy-16.5;
+ s+=tcap([120,sy-1],[120,sy-9],3.4,3.1,C.skin,false)
+  +ci([hx-6.8,hyc+1.2],1.7,C.skinF)+ci([hx+6.8,hyc+1.2],1.7,C.skinF)
+  +`<ellipse cx="${hx}" cy="${hyc}" rx="6.8" ry="8.2" fill="${C.skin}"/>`
+  +`<path d="M${hx-7.2} ${r1(hyc-1)} C${hx-8} ${r1(hyc-10.4)} ${hx+8} ${r1(hyc-10.4)} ${hx+7.2} ${r1(hyc-1)} C${hx+5.6} ${r1(hyc-5.4)} ${hx-5.6} ${r1(hyc-5.4)} ${hx-7.2} ${r1(hyc-1)}Z" fill="${C.hair}"/>`
+  +`<ellipse cx="${hx-2.4}" cy="${r1(hyc+0.6)}" rx=".85" ry="1" fill="${C.hair}"/><ellipse cx="${hx+2.4}" cy="${r1(hyc+0.6)}" rx=".85" ry="1" fill="${C.hair}"/>`
+  +`<path d="M${hx-1.9} ${r1(hyc+4.8)} Q${hx} ${r1(hyc+6.1)} ${hx+1.9} ${r1(hyc+4.8)}" fill="none" stroke="${C.skinF}" stroke-width="1" stroke-linecap="round"/>`;
+ s+=shoeFront(lL.a,-1)+shoeFront(lR.a,1);
  if(ex.draw==='db')s+=plate(aL.w,6.5)+plate(aR.w,6.5);
  return s+'</svg>';
 }
+
 const figSVG=(ex,u,gd)=>ex.view==='front'?figFront(ex,u,gd):figSide(ex,u,gd);
 
 /* ===== Dekoracje (sprzęt) ===== */
 const D={
- bench:padR(34,108,114,8)+fr(46,116,46,144)+fr(136,116,136,144),
- box:padR(24,106,52,38),
+ bench:padR(34,113,114,8)+fr(46,121,46,144)+fr(136,121,136,144),
+ box:padR(24,113,52,31),
  pbar:fr(80,22,162,22,5)+fr(90,22,90,144,3)+fr(152,22,152,144,3),
  hbar:fr(86,-1,160,-1,5)+fr(92,-1,92,144,3)+fr(154,-1,154,144,3),
- smith:fr(94,-10,94,144,3)+fr(112,-10,112,144,3),
- incline:ln([73,86],[98,109],11,C.pad)+padR(94,112,42,7)+fr(114,119,114,144),
- sideBench:padR(158,108,56,8)+fr(168,116,168,144)+fr(204,116,204,144),
- prone:padR(30,108,160,8)+fr(44,116,44,144)+fr(176,116,176,144),
+ smith:fr(98,-10,98,144,3)+fr(110,-10,110,144,3),
+ smithB:fr(64,-10,64,144,3)+fr(76,-10,76,144,3),
+ incline:ln([95,111],[63,85],11,C.pad)+padR(92,113,40,7)+fr(112,120,112,144),
+ sideBench:padR(124,113,56,8)+fr(134,121,134,144)+fr(170,121,170,144),
+ prone:padR(30,113,160,8)+fr(44,121,44,144)+fr(176,121,176,144),
  seatBack:padR(80,44,10,64)+padR(84,108,44,8)+fr(106,116,106,144),
  legext:padR(60,46,10,64)+padR(66,108,50,8)+fr(91,116,91,144),
  chestM:padR(76,46,9,66)+padR(80,108,44,8)+fr(102,116,102,144),
- pulldown:padR(80,108,44,8)+fr(102,116,102,144)+padR(108,97,26,7),
+ pulldown:padR(80,108,44,8)+fr(102,116,102,144)+padR(110,90,26,7),
  seatedRow:padR(68,108,46,8)+fr(92,116,92,144)+fr(152,98,152,144,5),
- legpress:ln([80,124],[48,101],10,C.pad)+fr(100,141,185,100,4)+padR(70,126,26,7),
- preacher:ln([83,78],[108,103],10,C.pad)+fr(108,103,108,144,4)+padR(70,108,40,8)+fr(90,116,90,144),
- abduct:padR(96,108,48,8)+fr(120,116,120,144)
+ legpress:ln([83,122],[52,100],10,C.pad)+fr(103,125,178,85,4)+padR(74,124,28,7),
+ preacher:ln([84,69],[110,95],10,C.pad)+fr(110,95,110,144,4)+padR(70,108,40,8)+fr(90,116,90,144),
+ abduct:padR(94,119,52,8)+fr(120,127,120,144)
 };
 
 /* ===== Szablony ruchów =====  a = poza A, b = poza B (m = poza pośrednia). Opis kluczy pozy:
@@ -250,7 +352,7 @@ tp('lunge',{g:'Nogi',hl:['thigh','glute'],mus:'czworogłowe ud, pośladki',ecc:'
  steps:['Stań w wykroku: jedna stopa z przodu, druga z tyłu na palcach, tułów prosto.','Opuść biodra pionowo w dół, aż przednie kolano ma ok. 90°, a tylne prawie dotyka podłogi.','Przednie kolano zostaje nad stopą, nie wychodzi mocno przed palce.','Odepchnij się przednią stopą i wróć w górę. Po serii zmień nogę.'],
  tips:'Ruch jest pionowy, nie „do przodu i do tyłu”. Tułów prosto, brzuch napięty.'});
 tp('deadlift',{g:'Plecy',hl:['torsoL','glute','thigh'],mus:'prostowniki grzbietu, pośladki, tył uda',draw:'bar',mf:true,ecc:'BA',
- a:{sh:[122,86],tr:45,ank:K,h:[118,131]},m:{sh:[121,68],tr:35,ank:K,h:[118,111]},b:{sh:[116,46],tr:2,ank:K,h:[118,90]},
+ a:{sh:[120,86],tr:52,ank:K,h:[118,130]},m:{sh:[119,68],tr:38,ank:K,h:[118,110]},b:{sh:[116,46],tr:2,ank:K,h:[118,90]},
  steps:['Sztanga nad środkiem stopy, tuż przy goleniach. Stopy na szerokość bioder, ręce proste, bark lekko przed sztangą.','Biodra wyżej niż w przysiadzie, plecy proste, klatka otwarta.','Odepchnij podłogę nogami i prostuj nogi oraz plecy jednocześnie, sztanga jedzie pionowo przy nogach.','Na górze ściśnij pośladki, a potem kontrolowanie opuść sztangę po tej samej linii.'],
  tips:'Sztanga startuje nad środkiem stopy i porusza się w pionie. Plecy nigdy nie są zaokrąglone. Zaczynaj od lekkiego obciążenia.'});
 tp('rdl',{g:'Pośladki',hl:['glute','thigh','torsoL'],mus:'tył uda, pośladki, prostowniki grzbietu',draw:'bar',mf:true,ecc:'AB',
@@ -269,6 +371,10 @@ tp('bridge',{g:'Pośladki',hl:['glute'],mus:'pośladki, tył uda',neck:1,ecc:'BA
  a:{sh:[62,134],tr:-90,ank:[116,AYY],ar:[92,92]},b:{sh:[62,134],tr:-115,ank:[116,AYY],ar:[92,92]},
  steps:['Połóż się na plecach, kolana ugięte, stopy blisko pośladków.','Wciśnij pięty w podłogę i unieś biodra do linii ramiona–biodra–kolana.','Zatrzymaj na sekundę, ściskając pośladki.','Opuść biodra powoli.'],
  tips:'Dobre na rozgrzewkę i na początek. Nie wyginaj lędźwi, ruch wychodzi z pośladków.'});
+tp('bridge1',{g:'Pośladki',hl:['glute'],mus:'pośladki, tył uda',neck:1,ecc:'BA',
+ a:{sh:[62,134],tr:-90,ank:[116,AYY],ank2:[116,AYY],ar:[92,92]},b:{sh:[62,134],tr:-115,ank:[116,AYY],ank2:[142,86],ar:[92,92]},
+ steps:['Połóż się na plecach, jedna stopa na podłodze, druga noga wyprostowana w górze.','Wciśnij piętę w podłogę i unieś biodra.','Utrzymaj biodra prosto, nie opuszczaj miednicy z żadnej strony.','Opuść biodra powoli. Po serii zmień nogę.'],
+ tips:'Druga noga wyprostowana w górze. Biodra utrzymuj prosto.'});
 tp('calf',{g:'Nogi',hl:['shin'],mus:'łydki',ecc:'BA',
  a:{hip:[112,80],tr:0,ank:[112,AYY],toe:[126,143],ar:[3,3]},b:{hip:[113,71],tr:0,ank:[113,130],toe:[126,143],ar:[3,3]},
  steps:['Stań prosto, stopy na szerokość bioder, najlepiej z przodem stopy na krawędzi schodka.','Wspnij się wysoko na palce.','Zatrzymaj się na górze na sekundę.','Opuść pięty powoli do pełnego rozciągnięcia łydek.'],
@@ -439,6 +545,239 @@ tp('russian',{g:'Brzuch',hl:['torsoL'],mus:'skośne brzucha',draw:'db',neck:0.8,
  steps:['Usiądź, unieś stopy lekko nad podłogą, plecy odchylone, ciężar przed klatką.','Skręć tułów w jedną stronę.','Wróć przez środek i skręć w drugą stronę.','Ruch kontrolowany, plecy proste.'],
  tips:'Zacznij ze stopami na podłodze. Skręcaj tułów, nie tylko ręce.'});
 
+
+/* ===== Silnik ruchu v2: ruch liczony z kątów stawów i więzów (stopy/dłonie przypięte, równowaga, tor sztangi) =====
+   s = 0..1 postęp ruchu od pozycji A do B. Kąty od pionu: dUp (w górę) i dDn (w dół), + do przodu. */
+const AX=112,AY=139,XM=118,A0=[AX,AY];
+const sstep=(a,b,x)=>{const t=Math.min(1,Math.max(0,(x-a)/(b-a)));return t*t*(3-2*t)};
+const Sof=P=>vadd(P.hip,vmul(dUp(P.tr),LK));
+const Dof=P=>dUp(P.tr);
+const fwdOf=P=>{const D=dUp(P.tr);return [-D[1],D[0]]};
+const legChain=(A,al,ka)=>{const K=vadd(A,vmul(dUp(al),LS));return vadd(K,vmul(dUp(al-ka),LT))};
+const chordLen=ka=>Math.sqrt(LT*LT+LS*LS+2*LT*LS*Math.cos(rad(ka)));
+function hipOnCircle(A,ka,hx){const d=chordLen(ka);let dx=hx-A[0];dx=Math.max(-d+.1,Math.min(d-.1,dx));return [A[0]+dx,A[1]-Math.sqrt(d*d-dx*dx)]}
+function bisect(f,lo,hi,n){let a=lo,b=hi,fa=f(a);for(let i=0;i<(n||20);i++){const m=(a+b)/2,fm=f(m);if((fa<=0)===(fm<=0)){a=m;fa=fm}else b=m}return (a+b)/2}
+/* środek ciężkości układu (masy segmentów wg Winter) + ładunek */
+function comX(j,load){
+ const al=(p,q,f)=>[p[0]+(q[0]-p[0])*f,p[1]+(q[1]-p[1])*f];
+ const L=[[.497,al(j.hip,j.S,.5)],[.081,j.H],[.1,al(j.hip,j.K,.433)],[.1,al(j.hip,j.K2,.433)],[.0465,al(j.K,j.A,.433)],[.0465,al(j.K2,j.A2,.433)],[.0145,[j.A[0]+5,j.A[1]]],[.0145,[j.A2[0]+5,j.A2[1]]],[.028,al(j.S,j.E,.436)],[.028,al(j.S,j.E2,.436)],[.022,al(j.E,j.W,.75)],[.022,al(j.E2,j.W2,.75)]];
+ if(load)L.push([load,j.bar]);
+ let m=0,x=0;for(const [w,p] of L){m+=w;x+=w*p[0]}return x/m;
+}
+const G={};
+/* ---- przysiady: kąt goleni (kostka) i zgięcie kolana z dołu; tułów dobiera równowaga ---- */
+function mkSquat(o){return (s,ex)=>{
+ const A=o.A||A0,al=lerp(o.al0||0,o.al,s),ka=o.ka*s;
+ const hp=legChain(A,al,ka);hp[0]+=(o.hx===undefined?3:o.hx)*(1-s);
+ const mk=t=>Object.assign({hip:hp,tr:t,ank:A},o.arms);
+ if(o.trf)return mk(o.trf(s));
+ const f=o.com!==undefined?(t=>comX(solve(ex,mk(t)),o.load||0)-o.com):(t=>solve(ex,mk(t)).bar[0]-o.bar);
+ return mk(bisect(f,o.lo===undefined?-3:o.lo,80));
+}}
+G.squat_back=mkSquat({al:34,ka:127,bar:116,arms:{hb:[2,3]}});
+G.squat_front=mkSquat({al:36,ka:128,bar:118,arms:{hb:[0,2]}});
+G.squat_goblet=mkSquat({al:36,ka:135,com:116,load:.12,arms:{hb:[0,0]}});
+G.squat_body=mkSquat({al:34,ka:127,com:116,arms:{ar:[84,88]}});
+G.squat_smith=mkSquat({A:[118,AY],al0:0,al:20,ka:118,hx:0,trf:s=>lerp(3,26,s),arms:{hb:[2,3]}});
+/* ---- wykrok: stopy przypięte (przednia i tylna), biodra schodzą pionowo; kolano przednie ok. 90° ---- */
+G.lunge=(s,ex)=>{
+ const Af=[140,AY],Ar=[88,133];
+ const hip=[lerp(118,111,s),lerp(83,109,s)];
+ const P={hip,tr:lerp(2,6,s),ank:Af,ank2:Ar,toe2:[Ar[0]+7,FLOOR]};
+ if(ex.att==='back')P.hb=[2,3];else P.ar=[2,5];
+ return P;
+};
+/* ---- martwy ciąg: sztanga pionowo nad środkiem stopy, ręce proste, kąt pleców maleje; biodra i barki rosną razem ---- */
+G.deadlift=(s,ex)=>{
+ const by=lerp(130,91,s),dx=lerp(5,-1,s);
+ const S=[XM+dx,by-Math.sqrt((LU+LF-1)*(LU+LF-1)-dx*dx)];
+ const tr=52-8*sstep(0,.5,s)-42*sstep(.5,1,s);
+ const D=dUp(tr);
+ return {hip:[S[0]-D[0]*LK,S[1]-D[1]*LK],tr,ank:A0,h:[XM,by]};
+};
+/* ---- RDL: kolana ~stałe, biodra cofają się, sztanga zwisa pionowo nad środkiem stopy ---- */
+G.rdl=(s,ex)=>{
+ const tr=lerp(2,72,s),kk=ex.kk!==undefined?ex.kk:16,kb=kk*(.5+.5*s);
+ const hx=XM-LK*Math.sin(rad(tr));
+ const hip=hipOnCircle(A0,kb,hx),S=Sof({hip,tr});
+ return {hip,tr,ank:A0,h:[S[0],S[1]+LU+LF-1]};
+};
+/* ---- good morning: jak RDL, sztanga na plecach (nad środkiem stopy) ---- */
+G.gm=(s,ex)=>{
+ const tr=lerp(2,70,s),kb=14*(.5+.5*s);
+ const mk=hx=>({hip:hipOnCircle(A0,kb,hx),tr,ank:A0,hb:[2,3]});
+ const hx=bisect(x=>solve(ex,mk(x)).bar[0]-XM,40,150);
+ return mk(hx);
+};
+/* ---- hip thrust / mostek: łopatki przypięte (ławka lub podłoga), biodra unoszą się, stopy przypięte ---- */
+const BS=[58,104];
+G.hipthrust=(s,ex)=>{
+ const S=BS,hy=lerp(124,107,s),dx=Math.sqrt(LK*LK-(S[1]-hy)*(S[1]-hy));
+ const hip=[S[0]+dx,hy],D=unit([S[0]-hip[0],S[1]-hip[1]]);
+ return {hip,tr:Math.atan2(D[0],-D[1])*180/Math.PI,ank:[123,AY],hd:[2,-8],hb:[0,0]};
+};
+G.bridge=(s,ex)=>{
+ const S=[60,134],hy=lerp(134,113,s),dx=Math.sqrt(LK*LK-(S[1]-hy)*(S[1]-hy));
+ const hip=[S[0]+dx,hy],D=unit([S[0]-hip[0],S[1]-hip[1]]);
+ return {hip,tr:Math.atan2(D[0],-D[1])*180/Math.PI,ank:[117,AY],ar:[92,92]};
+};
+G.bridge1=(s,ex)=>{
+ const P=G.bridge(s,ex);
+ const lift=sstep(0,.25,s);
+ const t=[Math.cos(rad(38))*59,-Math.sin(rad(38))*59];
+ const low=[117,AY];
+ P.ank2=[lerp(low[0],P.hip[0]+t[0],lift),lerp(low[1],P.hip[1]+t[1],lift)];
+ return P;
+};
+/* ---- wspięcia: obrót stopy wokół przodostopia, kolana prawie proste ---- */
+G.calf=(s,ex)=>{
+ const ph=rad(52*s),B=[AX+12,FLOOR];
+ const ank=[B[0]+(-12*Math.cos(ph)+5*Math.sin(ph)),B[1]+(-12*Math.sin(ph)-5*Math.cos(ph))];
+ const toe=[ank[0]+16*Math.cos(ph),ank[1]+16*Math.sin(ph)];
+ return {hip:[ank[0]+1,ank[1]-58.5],tr:1,ank,toe,toe2:[toe[0]-4,toe[1]-1],ar:[3,5]};
+};
+/* ---- wyciskanie leżąc: łopatki przypięte, tor J: z nad barków do dolnej części klatki, łokcie ~60° ---- */
+function lyingBase(){return {hip:[BS[0]+LK,BS[1]],tr:-90,ank:[118,AY]}}
+G.bench=(s,ex)=>{
+ const P=lyingBase(),S=BS;
+ const vx=ex.vertx;
+ const top=[S[0]+3,S[1]-LU-LF+1],bot=[S[0]+19,S[1]-12];
+ P.h=vx!==undefined?[vx,lerp(top[1],bot[1],s)]:[lerp(top[0],bot[0],s),lerp(top[1],bot[1],s)];
+ P.hd=undefined;
+ return P;
+};
+G.incline=(s,ex)=>{
+ const hip=[100,103],tr=-50,P0={hip,tr},S=Sof(P0),fw=fwdOf(P0);
+ const top=[S[0]+4,S[1]-LU-LF+1],ch=vadd(vadd(S,vmul(dUp(tr),-6)),vmul(fw,8));
+ return {hip,tr,ank:[128,AY],h:[lerp(top[0],ch[0],s),lerp(top[1],ch[1],s)]};
+};
+G.fly=(s,ex)=>{
+ const P=lyingBase();
+ P.ar=[lerp(178,238,s),lerp(176,232,s)];
+ return P;
+};
+G.chestm=(s,ex)=>{
+ const hip=[92,100],tr=-4,P0={hip,tr},S=Sof(P0);
+ return {hip,tr,ank:[124,AY],h:[lerp(S[0]+12,S[0]+44,s),S[1]+9]};
+};
+G.cablefly=(s,ex)=>{
+ const hip=[110,82],tr=10,S=Sof({hip,tr});
+ return {hip,tr,ank:A0,ank2:[132,AY],h:[lerp(S[0]-2,S[0]+30,s),lerp(S[1]-6,S[1]+14,s)]};
+};
+/* ---- pompki: stopy i dłonie przypięte, ciało prostą linią (obrót wokół palców), łokcie zgięte do ok. 90° ---- */
+function plankLine(S,A){const u=unit([A[0]-S[0],A[1]-S[1]]);const hip=[S[0]+u[0]*LK,S[1]+u[1]*LK];const D=[-u[0],-u[1]];return {hip,tr:Math.atan2(D[0],-D[1])*180/Math.PI}}
+G.pushup=(s,ex)=>{
+ const W=[58,141],A=[142,137.5],topY=W[1]-LU-LF+1,botY=128;
+ const sy=lerp(topY,botY,s),sx=A[0]-Math.sqrt(95*95-(A[1]-sy)*(A[1]-sy));
+ const P=plankLine([sx,sy],A);P.ank=A;P.toe=[A[0]+9,142.5];P.h=W;P.toe2=P.toe;
+ return P;
+};
+G.pushupk=(s,ex)=>{
+ const W=[58,141],topY=W[1]-LU-LF+1,sy=lerp(topY,126,s);
+ const Kx=W[0]+Math.sqrt(65*65-(141-topY)*(141-topY));
+ const Sx=Kx-Math.sqrt(65*65-(141-sy)*(141-sy)),Sp=[Sx,sy],K=[Kx,141];
+ const u=unit([K[0]-Sp[0],K[1]-Sp[1]]),hip=[Sp[0]+u[0]*LK,Sp[1]+u[1]*LK],D=[-u[0],-u[1]];
+ const a=[Kx+28,133];
+ return {hip,tr:Math.atan2(D[0],-D[1])*180/Math.PI,ank:a,toe:[a[0]+7,a[1]+9],toe2:[a[0]+7,a[1]+9],h:W};
+};
+/* ---- deska: łokcie przypięte pod barkami, ciało prostą linią ---- */
+G.plank=(s,ex)=>{
+ const A=[143,137.5],ey=141,sy=ey-LU,xE=A[0]-Math.sqrt(95*95-(A[1]-sy)*(A[1]-sy));
+ const S=[xE,sy+Math.sin(Math.PI*s)*-1.2];
+ const P=plankLine(S,A);P.ank=A;P.toe=[A[0]+9,142.5];P.toe2=P.toe;P.h=[xE+LF,ey];
+ return P;
+};
+/* ---- wiosłowanie w opadzie: zawias biodrowy ~62°, plecy proste; sztanga z zwisu pod barkami do dolnej części brzucha ---- */
+function hingeBase(tr,kb,ex){
+ const hx=XM-LK*Math.sin(rad(tr)),hip=hipOnCircle(A0,kb,hx);return {hip,tr,ank:A0};
+}
+G.row=(s,ex)=>{
+ const P=hingeBase(62,24,ex),S=Sof(P),fw=fwdOf(P),D=dUp(62);
+ const hang=[S[0],S[1]+LU+LF-1],pull=vadd(vadd(P.hip,vmul(D,16)),vmul(fw,9));
+ P.h=[lerp(hang[0],pull[0],s),lerp(hang[1],pull[1],s)];
+ return P;
+};
+G.row1=(s,ex)=>{
+ const P=hingeBase(66,24,ex),S=Sof(P),fw=fwdOf(P),D=dUp(66);
+ const hang=[S[0],S[1]+LU+LF-1],pull=vadd(vadd(P.hip,vmul(D,15)),vmul(fw,2));
+ P.h=[lerp(hang[0],pull[0],s),lerp(hang[1],pull[1],s)];
+ P.farh=[148,110];
+ return P;
+};
+G.seatedrow=(s,ex)=>{
+ const hip=[90,100],tr=lerp(10,-6,s),P0={hip,tr},S=Sof(P0),fw=fwdOf(P0);
+ const ext=[S[0]+37,S[1]+24],pull=vadd(vadd(hip,vmul(dUp(tr),12)),vmul(fw,9));
+ return {hip,tr,ank:[144,126],h:[lerp(ext[0],pull[0],s),lerp(ext[1],pull[1],s)]};
+};
+G.pulldown=(s,ex)=>{
+ const hip=[96,100],tr=-10,P0={hip,tr},S=Sof(P0),fw=fwdOf(P0);
+ const up=[S[0]+8,S[1]-LU-LF+2],ch=vadd(vadd(S,vmul(dUp(tr),-6)),vmul(fw,9));
+ return {hip,tr,ank:[128,AY],h:[lerp(up[0],ch[0],s),lerp(up[1],ch[1],s)]};
+};
+G.pullup=(s,ex)=>{
+ const hand=[121,22],S=[lerp(121,114,s),lerp(hand[1]+LU+LF-1,hand[1]+8,s)],tr=lerp(0,-10,s),D=dUp(tr);
+ return {hip:[S[0]-D[0]*LK,S[1]-D[1]*LK],tr,h:hand,lg:[4,-40]};
+};
+G.super=(s,ex)=>{
+ const S=[62,134],hip=[97,134];
+ return {hip,tr:-90,lg:[lerp(88,96,s),lerp(88,96,s)],ar:[lerp(270,286,s),lerp(270,286,s)]};
+};
+/* ---- wyciskanie nad głowę: sztanga pionowo nad środkiem stopy (przód barków -> nad głowę) ---- */
+G.ohp=(s,ex)=>{
+ const tr=lerp(2,-3,sstep(.3,1,s)),P={hip:[113,AY-59.5],tr,ank:A0},S=Sof(P);
+ P.h=[XM,lerp(S[1]-3,S[1]-LU-LF+1,s)];return P;
+};
+G.ohps=(s,ex)=>{
+ const hip=[96,100],tr=-3,P0={hip,tr},S=Sof(P0);
+ return {hip,tr,ank:[128,AY],h:[lerp(S[0]+4,S[0]+1,s),lerp(S[1]-3,S[1]-LU-LF+1,s)]};
+};
+/* ---- ręce w izolacji: kąty stawów (bark, łokieć), tułów stoi ---- */
+const stand=(tr)=>({hip:[AX+2,AY-59.5],tr:tr===undefined?2:tr,ank:A0});
+G.curl=(s,ex)=>{const e=lerp(6,142,s);return Object.assign(stand(),{ar:[3,3+e]})};
+G.curlcable=G.curl;
+G.preacher=(s,ex)=>{const e=lerp(12,148,s);return {hip:[88,100],tr:0,ank:[118,AY],ar:[46,46+e]}};
+G.skull=(s,ex)=>{const e=lerp(4,104,s);return Object.assign(lyingBase(),{ar:[190,190+e]})};
+G.pushdown=(s,ex)=>{const e=lerp(96,8,s);return Object.assign(stand(),{ar:[-4,-4+e]})};
+G.overhead=(s,ex)=>{const e=lerp(4,126,1-s);return Object.assign(stand(),{ar:[176,176+e]})};
+G.kickb=(s,ex)=>{const P=hingeBase(64,22,ex);const e=lerp(88,2,s);P.ar=[270,270+e];return P};
+G.fraise=(s,ex)=>{const f=lerp(4,90,s);return Object.assign(stand(),{ar:[f,f+3]})};
+G.upright=(s,ex)=>{const P=stand(),S=Sof(P);P.h=[S[0]+7,lerp(S[1]+42,S[1]+2,s)];P.ex=1;return P};
+G.facepull=(s,ex)=>{const P=stand(),S=Sof(P);P.h=[lerp(S[0]+42,S[0]+11,s),lerp(S[1]-6,S[1]-8,s)];return P};
+G.pushdownB=G.pushdown;
+/* ---- widoki z przodu: odwiedzenie ramienia i nóg, uniesienie barków ---- */
+G.lateral=(s,ex)=>({ab:lerp(7,86,s),el:14,sr:0,lk:3});
+G.shrug=(s,ex)=>({ab:6,el:5,sr:lerp(0,8,s),lk:3});
+G.abduct=(s,ex)=>({ab:8,el:10,sr:0,lk:lerp(6,34,s),seat:1});
+G.adduct=(s,ex)=>({ab:8,el:10,sr:0,lk:lerp(34,6,s),seat:1});
+/* ---- brzuch i inne leżące ---- */
+G.crunch=(s,ex)=>{const hip=[97,135],tr=lerp(-90,-60,s);return {hip,tr,ank:[130,AY],hd:[-2,3]}};
+G.legraise=(s,ex)=>({hip:[97,135],tr:-90,lg:[lerp(178,100,s),lerp(178,100,s)],ar:[92,92]});
+G.hangleg=(s,ex)=>{const S=[121,44],tr=lerp(-3,-14,s),D=dUp(tr);const f=lerp(4,88,s);return {hip:[S[0]-D[0]*LK,S[1]-D[1]*LK],tr,h:[121,-1],lg:[f,f]}};
+G.ccrunch=(s,ex)=>{const hip=[118,110],tr=lerp(0,52,s);return {hip,tr,ank:[92,128],toe:[92,144],hd:[6,-2],ls:undefined}};
+G.pallof=(s,ex)=>{const P=stand(),S=Sof(P);P.h=[lerp(S[0]+11,S[0]+42,s),lerp(S[1]+12,S[1]+4,s)];return P};
+G.russian=(s,ex)=>{const hip=[100,127],tr=-34,P0={hip,tr},S=Sof(P0);return {hip,tr,ank:[134,118],h:[lerp(S[0]+10,S[0]+22,s),S[1]+18]}};
+/* ---- maszyny siedzące ---- */
+G.legext=(s,ex)=>({hip:[78,100],tr:-8,lg:[84,lerp(4,92,s)],ar:[40,60]});
+G.legcurl=(s,ex)=>({hip:[78,100],tr:-8,lg:[84,lerp(92,-8,s)],ar:[40,60]});
+G.lycurl=(s,ex)=>({hip:[97,104],tr:-90,lg:[90,lerp(90,190,s)],ar:[75,75]});
+G.legpress=(s,ex)=>{const hip=[86,116],d=lerp(40,59.5,s),a=rad(28);return {hip,tr:-54,ank:[hip[0]+d*Math.cos(a),hip[1]-d*Math.sin(a)],h:[hip[0]+10,hip[1]-8]}};
+/* ---- czworaki: odkopy; dłonie przypięte pod barkami, kolano podparcia na podłodze ---- */
+G.kick=(s,ex)=>{
+ const hand=[66,141],S=[66,141-LU-LF+1],hy=115,dx=Math.sqrt(LK*LK-(S[1]-hy)*(S[1]-hy)),hip=[S[0]+dx,hy];
+ const D=unit([S[0]-hip[0],S[1]-hip[1]]),tr=Math.atan2(D[0],-D[1])*180/Math.PI;
+ const th=lerp(0,104,s),sh=lerp(90,104,s);
+ const K=vadd(hip,vmul(dDn(th),LT)),A=vadd(K,vmul(dDn(sh),LS));
+ return {hip,tr,lg:[th,sh],h:hand,ank2:[hip[0]+LT,141],toe2:[hip[0]+LT+8,143.5]};
+};
+G.pallof2=G.pallof;
+
+
+/* podłączenie generatorów do szablonów + flagi orientacji ciała (fl=-1: leży na brzuchu / podpór przodem w dół) */
+for(const id in G){if(T[id])T[id].gen=G[id]}
+T.squat_front.att='front';T.squat_goblet.att='chest';
+for(const id of ['pushup','pushupk','plank','kick','super','lycurl'])T[id].fl=-1;
+T.upright.as=-1;T.facepull.as=-1;T.pushup.as=-1;T.pushupk.as=-1;
+
 /* ===== Lista ćwiczeń: [id, nazwa, szablon, opcje] ===== */
 const LIST=[
  ['przysiad','Przysiad (masa ciała)','squat_body',{eq:'masa ciała'}],
@@ -525,7 +864,7 @@ const LIST=[
  ['kickb','Prostowanie ramienia w opadzie','kickb',{eq:'hantel'}],
 
  ['hack','Przysiad hack (maszyna)','squat_smith',{eq:'maszyna'}],
- ['mostek-jednonoz','Mostek jednonóż','bridge',{eq:'masa ciała',tip:'Druga noga wyprostowana w górze. Biodra utrzymuj prosto.'}],
+ ['mostek-jednonoz','Mostek jednonóż','bridge1',{eq:'masa ciała',tip:'Druga noga wyprostowana w górze. Biodra utrzymuj prosto.'}],
  ['szrugsy-sztanga','Szrugsy ze sztangą','shrug',{eq:'sztanga',draw:'bar'}],
  ['butterfly','Rozpiętki na maszynie (butterfly)','chestm',{eq:'maszyna',tip:'Uchwyty zbliżaj łukiem przed klatką, nie prostuj rąk do końca.'}],
  ['rozpietki','Rozpiętki z hantlami leżąc','fly',{eq:'hantle i ławka'}],
@@ -541,14 +880,15 @@ const LIST=[
 const BUILTIN=LIST.map(([id,name,tid,o])=>{
  const t=T[tid];o=o||{};
  const clone=p=>{const q={};for(const k in p)q[k]=Array.isArray(p[k])?p[k].slice():p[k];return q};
- let a=clone(t.a),b=clone(t.b),m=t.m?clone(t.m):null;
- if(o.backArms){for(const p of [a,b]){delete p.ar;p.hb=[3,3]}}
- return {id,name,tpl:tid,group:o.g||t.g,eq:o.eq||'',view:t.view,a,b,m,
-  deco:o.deco!==undefined?o.deco:t.deco,hl:o.hl||t.hl,mus:o.mus||t.mus,neck:t.neck,ls:t.ls,as:t.as,mf:t.mf,ecc:t.ecc,plate:t.plate,
-  att:o.att||t.att,cable:o.cable||t.cable,cableTo:o.cableTo,
+ const ex={id,name,tpl:tid,group:o.g||t.g,eq:o.eq||'',view:t.view,a:clone(t.a),b:clone(t.b),m:t.m?clone(t.m):null,gen:t.gen,fl:t.fl,
+  deco:o.deco!==undefined?o.deco:t.deco,mus:o.mus||t.mus,neck:t.neck,ls:t.ls,as:t.as,ecc:t.ecc,plate:t.plate,
+  att:o.backArms?'back':(o.att||t.att),cable:o.cable||t.cable,cableTo:o.cableTo,kk:o.kk,vertx:o.vertx,
   draw:o.draw!==undefined?o.draw:t.draw,
   steps:t.steps,tips:[t.tips,o.tip].filter(Boolean).join(' ')};
+ return ex;
 });
+/* linia pomocnicza: pionowy tor sztangi (tam, gdzie sztanga jedzie w pionie) */
+BUILTIN.forEach(e=>{if(e.tpl&&['squat_back','squat_front','squat_goblet','squat_smith','deadlift','rdl','gm','ohp'].includes(e.tpl)&&e.draw)e.gx=r1(solve(e,poseAt(e,e.tpl==='deadlift'||e.tpl==='rdl'?0.5:0)).bar[0])});
 
 /* ===== Stan i zapis ===== */
 const KEY='trening_v1';
@@ -705,7 +1045,8 @@ function libG(g){LIB.g=g;document.getElementById('lc').innerHTML=chipsHTML(LIB,'
 
 /* --- Modale --- */
 function modal(html){document.getElementById('modal').innerHTML=`<div class="ov" onclick="if(event.target===this)closeModal()"><div class="sheet">${html}</div></div>`}
-function closeModal(){clearInterval(animT);animT=null;document.getElementById('modal').innerHTML=''}
+function animStop(){if(animT){cancelAnimationFrame(animT);animT=null}}
+function closeModal(){animStop();document.getElementById('modal').innerHTML=''}
 function ask(text,okLabel,cb){window._cb=cb;modal(`<p style="font-size:17px">${esc(text)}</p><div class="row"><button class="sec" style="flex:1" onclick="closeModal()">Anuluj</button><button style="flex:1" onclick="closeModal();window._cb()">${esc(okLabel)}</button></div>`)}
 function toast(t){const d=document.createElement('div');d.textContent=t;d.style.cssText='position:fixed;left:50%;transform:translateX(-50%);bottom:90px;background:#1f1d2b;color:#fff;padding:10px 16px;border-radius:12px;z-index:99;font-size:15px';document.body.appendChild(d);setTimeout(()=>d.remove(),2200)}
 
@@ -724,7 +1065,7 @@ function openDetail(id){
  const ex=getEx(id);if(!ex)return;const b=bestKg(id);
  const pic=ex.img?`<div class="big"><img src="${ex.img}" alt=""></div>`:!ex.a?'':`<div class="big" id="anim">${figSVG(ex,0)}</div><div class="row" style="margin-top:8px"><button class="sec sm" style="flex:1" onclick="animMode(0)">Start</button><button class="sec sm" style="flex:1" onclick="animMode('play')">▶ Animacja</button><button class="sec sm" style="flex:1" onclick="animMode(1)">Koniec</button></div><div class="row" style="margin-top:8px"><button class="sec sm" id="gbtn" style="flex:1" onclick="toggleGuide()">Pokaż linie pomocnicze</button></div><div class="mut" id="phase" style="text-align:center;margin-top:6px;min-height:18px"></div>`;
  modal(`<div class="row sp"><h2 style="margin:0">${esc(ex.name)}</h2><button class="sec sm" onclick="closeModal()">Zamknij</button></div>
- <div class="mut" style="margin:4px 0 4px">${esc(ex.group)}${ex.eq?' · '+esc(ex.eq):''}${b?' · Twój rekord: '+b+' kg':''}</div>${ex.mus?`<div class="mut" style="margin-bottom:10px">Pracują: ${esc(ex.mus)} <span style="color:var(--hl,#ff7a59)">(zaznaczone na rysunku)</span></div>`:'<div style="height:6px"></div>'}${pic}
+ <div class="mut" style="margin:4px 0 4px">${esc(ex.group)}${ex.eq?' · '+esc(ex.eq):''}${b?' · Twój rekord: '+b+' kg':''}</div>${ex.mus?`<div class="mut" style="margin-bottom:10px">Pracują: ${esc(ex.mus)}</div>`:'<div style="height:6px"></div>'}${pic}
  <h2>Jak wykonać</h2><ol>${(ex.steps||[]).map(s=>`<li>${esc(s)}</li>`).join('')}</ol>
  ${ex.tips?`<div class="card" style="background:var(--acc2)"><b>Wskazówka:</b> ${esc(ex.tips)}</div>`:''}
  ${ex.custom?`<button class="bad full" onclick="delCustom('${ex.id}')">Usuń to ćwiczenie</button>`:''}`);
@@ -743,9 +1084,13 @@ function cyc(ex,ms){
  return[0,ab?'Góra: krótka pauza':'Dół: krótka pauza'];
 }
 function animMode(m){
- clearInterval(animT);animT=null;mode=m;const el=document.getElementById('anim'),ph=document.getElementById('phase');if(!el)return;
+ animStop();mode=m;const el=document.getElementById('anim'),ph=document.getElementById('phase');if(!el)return;
  const ex=window._ex;
- if(m==='play'){t0=Date.now();animT=setInterval(()=>{const r=cyc(ex,Date.now()-t0);el.innerHTML=figSVG(ex,r[0],guide);if(ph)ph.textContent=r[1]},40)}
+ if(m==='play'){t0=performance.now();let last='',lastTxt='';
+  const loop=now=>{const r=cyc(ex,now-t0);const sv=figSVG(ex,r[0],guide);if(sv!==last){el.innerHTML=sv;last=sv}
+   if(ph&&r[1]!==lastTxt){ph.textContent=r[1];lastTxt=r[1]}
+   animT=requestAnimationFrame(loop)};
+  animT=requestAnimationFrame(loop)}
  else{el.innerHTML=figSVG(ex,m,guide);if(ph)ph.textContent=m===0?'Pozycja startowa':'Pozycja końcowa'}
 }
 function toggleGuide(){guide=!guide;const b=document.getElementById('gbtn');if(b)b.textContent=guide?'Ukryj linie pomocnicze':'Pokaż linie pomocnicze';if(mode!=='play')animMode(mode)}
